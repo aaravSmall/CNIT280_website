@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Place an Order</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f4f9;
+      color: #333;
+    }
+    header {
+      background: #3b5d5b;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      background: #ece0d7;
+      padding: 10px;
+    }
+    nav a {
+      margin: 0 15px;
+      text-decoration: none;
+      font-weight: bold;
+      color: #31333e;
+    }
+    nav a:hover {
+      text-decoration: underline;
+    }
+    .container {
+      max-width: 700px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin: 10px 0 5px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    input.error, select.error, textarea.error {
+      border: 2px solid red;
+    }
+    .exclamation {
+      color: red;
+      font-weight: bold;
+      margin-left: 5px;
+    }
+    button {
+      background: #3b5d5b;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2d4443;
+    }
+
+    /* Popup styles */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .popup-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+      position: relative;
+    }
+    .popup-content h2 {
+      margin-top: 0;
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px; right: 15px;
+      font-size: 20px;
+      cursor: pointer;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Place an Order</h1>
+  </header>
+
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="order.html">Place an Order</a>
+    <a href="#">About</a>
+    <a href="#">Contact</a>
+  </nav>
+
+  <div class="container">
+    <form id="orderForm">
+      <h2>Search Patient Information</h2>
+      <label for="patient-id">Patient ID or Name:</label>
+      <input type="text" id="patient-id" name="patient-id">
+
+      <h2>Order Information</h2>
+      <label for="order-type">Order Type:</label>
+      <select id="order-type" name="order-type">
+        <option value="">-- Select --</option>
+        <option>Event Booking</option>
+        <option>Catering</option>
+        <option>Equipment Rental</option>
+      </select>
+
+      <label for="order-details">Details:</label>
+      <textarea id="order-details" name="order-details"></textarea>
+
+      <h2>Payment Information</h2>
+      <label for="card-name">Name on Card:</label>
+      <input type="text" id="card-name" name="card-name">
+
+      <label for="card-number">Card Number:</label>
+      <input type="text" id="card-number" name="card-number" maxlength="16">
+
+      <label for="expiry">Expiration Date:</label>
+      <input type="month" id="expiry" name="expiry">
+
+      <label for="cvv">CVV:</label>
+      <input type="text" id="cvv" name="cvv" maxlength="3">
+
+      <button type="submit">Submit Order</button>
+    </form>
+  </div>
+
+  <!-- Success Popup -->
+  <div class="popup" id="successPopup">
+    <div class="popup-content">
+      <span class="close-btn" onclick="closePopup('successPopup')">&times;</span>
+      <h2>Order Confirmed</h2>
+      <p id="orderSummary"></p>
+    </div>
+  </div>
+
+  <!-- Error Popup -->
+  <div class="popup" id="errorPopup">
+    <div class="popup-content">
+      <span class="close-btn" onclick="closePopup('errorPopup')">&times;</span>
+      <h2>Error</h2>
+      <p>One or more fields are incorrect or empty. Please fix this before continuing.</p>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("orderForm");
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      let valid = true;
+      let fields = ["patient-id", "order-type", "order-details", "card-name", "card-number", "expiry", "cvv"];
+
+      fields.forEach(id => {
+        const field = document.getElementById(id);
+        field.classList.remove("error");
+        if (document.getElementById(id + "-excl")) {
+          document.getElementById(id + "-excl").remove();
+        }
+
+        if (!field.value.trim()) {
+          markError(field);
+          valid = false;
+        }
+      });
+
+      // Card number check (16 digits)
+      const cardNumber = document.getElementById("card-number");
+      if (!/^\d{16}$/.test(cardNumber.value)) {
+        markError(cardNumber);
+        valid = false;
+      }
+
+      // CVV check (3 digits)
+      const cvv = document.getElementById("cvv");
+      if (!/^\d{3}$/.test(cvv.value)) {
+        markError(cvv);
+        valid = false;
+      }
+
+      // Expiry check (must be future date)
+      const expiry = document.getElementById("expiry");
+      if (expiry.value) {
+        const expDate = new Date(expiry.value + "-01");
+        const now = new Date();
+        if (expDate <= now) {
+          markError(expiry);
+          valid = false;
+        }
+      }
+
+      if (valid) {
+        showSuccess();
+      } else {
+        document.getElementById("errorPopup").style.display = "flex";
+      }
+    });
+
+    function markError(field) {
+      field.classList.add("error");
+      let excl = document.createElement("span");
+      //excl.textContent = "!";
+      //excl.classList.add("exclamation");
+      excl.id = field.id + "-excl";
+      field.insertAdjacentElement("afterend", excl);
+    }
+
+    function showSuccess() {
+      let summary = `
+        <strong>Patient:</strong> ${document.getElementById("patient-id").value}<br>
+        <strong>Order Type:</strong> ${document.getElementById("order-type").value}<br>
+        <strong>Details:</strong> ${document.getElementById("order-details").value}<br>
+        <strong>Name on Card:</strong> ${document.getElementById("card-name").value}<br>
+        <strong>Card Number:</strong> **** **** **** ${document.getElementById("card-number").value.slice(-4)}<br>
+        <strong>Expiry:</strong> ${document.getElementById("expiry").value}<br>
+        <strong>CVV:</strong> *** (hidden for security)<br>
+      `;
+      document.getElementById("orderSummary").innerHTML = summary;
+      document.getElementById("successPopup").style.display = "flex";
+    }
+
+    function closePopup(id) {
+      document.getElementById(id).style.display = "none";
+    }
+  </script>
+
+</body>
+</html>
