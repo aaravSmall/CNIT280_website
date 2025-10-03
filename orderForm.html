@@ -109,16 +109,16 @@
   </header>
 
   <nav>
-    <a href="index.html">Home</a>
-    <a href="order.html">Place an Order</a>
+    <a href="homePage.html">Home</a>
+    <a href="orderForm.html">Place an Order</a>
     <a href="#">About</a>
     <a href="#">Contact</a>
   </nav>
 
   <div class="container">
     <form id="orderForm">
-      <h2>Search Patient Information</h2>
-      <label for="patient-id">Patient ID or Name:</label>
+      <h2>Enter Information</h2>
+      <label for="patient-id">Name:</label>
       <input type="text" id="patient-id" name="patient-id">
 
       <h2>Order Information</h2>
@@ -154,8 +154,12 @@
   <div class="popup" id="successPopup">
     <div class="popup-content">
       <span class="close-btn" onclick="closePopup('successPopup')">&times;</span>
-      <h2>Order Confirmed</h2>
+      <h2>Order Review</h2>
       <p id="orderSummary"></p>
+      <div style="margin-top:15px; text-align:right;">
+        <button onclick="editOrder()" style="background:#ccc; color:#000; margin-right:10px;">Edit Order</button>
+        <button onclick="confirmOrder()">Confirm Order</button>
+      </div>
     </div>
   </div>
 
@@ -225,15 +229,13 @@
     function markError(field) {
       field.classList.add("error");
       let excl = document.createElement("span");
-      //excl.textContent = "!";
-      //excl.classList.add("exclamation");
       excl.id = field.id + "-excl";
       field.insertAdjacentElement("afterend", excl);
     }
 
     function showSuccess() {
       let summary = `
-        <strong>Patient:</strong> ${document.getElementById("patient-id").value}<br>
+        <strong>Name:</strong> ${document.getElementById("patient-id").value}<br>
         <strong>Order Type:</strong> ${document.getElementById("order-type").value}<br>
         <strong>Details:</strong> ${document.getElementById("order-details").value}<br>
         <strong>Name on Card:</strong> ${document.getElementById("card-name").value}<br>
@@ -243,6 +245,17 @@
       `;
       document.getElementById("orderSummary").innerHTML = summary;
       document.getElementById("successPopup").style.display = "flex";
+    }
+
+    function editOrder() {
+      closePopup('successPopup');
+      // User can now adjust values in form directly
+    }
+
+    function confirmOrder() {
+      alert("✅ Your order has been finalized! Thank you.");
+      closePopup('successPopup');
+      form.reset(); // clear form after confirmation (optional)
     }
 
     function closePopup(id) {
