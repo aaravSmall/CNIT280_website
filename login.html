@@ -24,7 +24,7 @@
       text-align: center;
       color: #3b5d5b;
     }
-    input {
+    input, select {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
@@ -57,6 +57,13 @@
     <form id="loginForm">
       <input type="text" id="username" placeholder="Username" required>
       <input type="password" id="password" placeholder="Password" required>
+
+      <select id="role" required>
+        <option value="">Select Role</option>
+        <option value="customer">Customer</option>
+        <option value="admin">Admin</option>
+      </select>
+
       <button type="submit">Login</button>
       <div class="error" id="errorMsg"></div>
     </form>
@@ -64,16 +71,33 @@
 
   <script>
     const loginForm = document.getElementById("loginForm");
+
     loginForm.addEventListener("submit", function(e) {
       e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
 
-      // Example credentials
-      if(username === "user1" && password === "pass123") {
-        window.location.href = "homePage.html";
-      } else {
-        document.getElementById("errorMsg").textContent = "Invalid username or password!";
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const role = document.getElementById("role").value;
+
+      // Example credentials (for demo)
+      const users = {
+        customer: { username: "user1", password: "pass123" },
+        admin: { username: "admin", password: "admin123" }
+      };
+
+      // Role-based login validation
+      if (role === "customer" && username === users.customer.username && password === users.customer.password) {
+        localStorage.setItem("loggedInUser", username);
+        localStorage.setItem("userRole", "customer");
+        window.location.href = "orderForm.html"; // customer dashboard
+      } 
+      else if (role === "admin" && username === users.admin.username && password === users.admin.password) {
+        localStorage.setItem("loggedInUser", username);
+        localStorage.setItem("userRole", "admin");
+        window.location.href = "adminDashboard.html"; // admin dashboard
+      } 
+      else {
+        document.getElementById("errorMsg").textContent = "Invalid username, password, or role!";
       }
     });
   </script>
