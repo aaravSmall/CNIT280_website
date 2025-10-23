@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Order History</title>
+  <title>Admin Dashboard</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
     header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
     nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; }
     nav a { margin:0 15px; text-decoration:none; font-weight:bold; color:#31333e; }
     nav a:hover { text-decoration:underline; }
-    .container { max-width:700px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .container { max-width:900px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
     table { width:100%; border-collapse:collapse; }
     th, td { border:1px solid #ccc; padding:10px; text-align:left; }
     th { background:#3b5d5b; color:white; }
@@ -20,36 +20,33 @@
 <body>
 
 <header>
-  <h1>Your Order History</h1>
+  <h1>Admin Dashboard</h1>
 </header>
 
 <nav>
-  <a href="homePage.html">Home</a>
-  <a href="orderForm.html">Place an Order</a>
-  <a href="orderHistory.html">Order History</a>
   <a href="#" onclick="logout()">Logout</a>
 </nav>
 
 <div class="container">
-  <table id="ordersTable">
+  <table id="adminOrdersTable">
     <thead>
       <tr>
+        <th>Customer</th>
         <th>Type</th>
         <th>Details</th>
         <th>Status</th>
-        <th>Edit</th>
+        <th>Action</th>
       </tr>
     </thead>
-    <tbody id="ordersBody">
-    </tbody>
+    <tbody id="adminOrdersBody"></tbody>
   </table>
   <p id="noOrders" style="text-align:center; margin-top:10px;">No orders yet.</p>
 </div>
 
 <script>
   const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-  if(!currentUser || currentUser.role !== "customer") {
-    alert("Access denied. Only customers can view this page.");
+  if(!currentUser || currentUser.role !== "admin") {
+    alert("Access denied. Only admins can view this page.");
     window.location.href = "login.html";
   }
 
@@ -60,35 +57,34 @@
 
   function loadOrders() {
     const allOrders = JSON.parse(localStorage.getItem("orders")) || [];
-    const userOrders = allOrders.filter(o => o.customer === currentUser.username);
-
-    const tbody = document.getElementById("ordersBody");
+    const tbody = document.getElementById("adminOrdersBody");
     tbody.innerHTML = "";
 
-    if(userOrders.length === 0) {
+    if(allOrders.length === 0) {
       document.getElementById("noOrders").style.display = "block";
     } else {
       document.getElementById("noOrders").style.display = "none";
-      userOrders.forEach((order, index) => {
+      allOrders.forEach((order, index) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
+          <td>${order.customer}</td>
           <td>${order.type}</td>
           <td>${order.details}</td>
           <td>${order.status}</td>
-          <td><button onclick="editOrder(${index})" ${order.status === 'Complete' ? 'disabled' : ''}>Edit</button></td>
+          <td>
+            <button onclick="markComplete(${index})" ${order.status === 'Complete' ? 'disabled' : ''}>Mark Complete</button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
     }
   }
 
-  function editOrder(index) {
-    const allOrders = JSON.parse(localStorage.getItem("orders")) || [];
-    const userOrders = allOrders.filter(o => o.customer === currentUser.username);
-
-    const order = userOrders[index];
-    localStorage.setItem("editIndex", allOrders.findIndex(o => o === order));
-    window.location.href = "orderForm.html";
+  function markComplete(index) {
+    const orders = JSON.parse(localStorage.getItem("orders")) || [];
+    orders[index].status = "Complete";
+    localStorage.setItem("orders", JSON.stringify(orders));
+    loadOrders();
   }
 
   loadOrders();
