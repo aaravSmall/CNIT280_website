@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Order History</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f4f4f9;
+    color: #333;
+  }
+  header {
+    background: #3b5d5b;
+    color: white;
+    padding: 15px;
+    text-align: center;
+  }
+  nav {
+    display: flex;
+    justify-content: center;
+    background: #ece0d7;
+    padding: 10px;
+  }
+  nav a {
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
+    color: #31333e;
+  }
+  nav a:hover {
+    text-decoration: underline;
+  }
+  .container {
+    max-width: 800px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+  }
+  th {
+    background: #ece0d7;
+  }
+  button {
+    background: #3b5d5b;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #2d4443;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Order History</h1>
+</header>
+
+<nav>
+  <a href="homePage.html">Home</a>
+  <a href="orderForm.html">Place an Order</a>
+  <a href="orderHistory.html">Order History</a>
+  <a href="#">About</a>
+  <a href="#">Contact</a>
+</nav>
+
+<div class="container">
+  <h2>Your Orders</h2>
+  <table id="ordersTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Order Type</th>
+        <th>Details</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Orders will populate here -->
+    </tbody>
+  </table>
+</div>
+
+<script>
+  function loadOrders() {
+    const orders = JSON.parse(localStorage.getItem("orders")) || [];
+    const tbody = document.querySelector("#ordersTable tbody");
+    tbody.innerHTML = "";
+
+    orders.forEach((order, index) => {
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${order.name}</td>
+        <td>${order.type}</td>
+        <td>${order.details}</td>
+        <td>
+          <button onclick="editOrder(${index})">Edit</button>
+          <button onclick="deleteOrder(${index})">Cancel</button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    if (orders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No orders yet.</td></tr>`;
+    }
+  }
+
+  function editOrder(index) {
+    window.location.href = `orderForm.html?edit=${index}`;
+  }
+
+  function deleteOrder(index) {
+    let orders = JSON.parse(localStorage.getItem("orders")) || [];
+    if (confirm("Are you sure you want to cancel this order?")) {
+      orders.splice(index, 1);
+      localStorage.setItem("orders", JSON.stringify(orders));
+      loadOrders();
+    }
+  }
+
+  window.onload = loadOrders;
+</script>
+
+</body>
+</html>

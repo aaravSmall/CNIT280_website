@@ -111,6 +111,7 @@
   <nav>
     <a href="homePage.html">Home</a>
     <a href="orderForm.html">Place an Order</a>
+    <a href="orderHistory.html">Order History</a>
     <a href="#">About</a>
     <a href="#">Contact</a>
   </nav>
@@ -174,6 +175,7 @@
 
   <script>
     const form = document.getElementById("orderForm");
+    let editingIndex = null;
 
     form.addEventListener("submit", function(e) {
       e.preventDefault();
@@ -249,17 +251,69 @@
 
     function editOrder() {
       closePopup('successPopup');
-      // User can now adjust values in form directly
+
+      if (editingIndex !== null) {
+        // load order data back into form for editing
+        const orders = JSON.parse(localStorage.getItem("orders")) || [];
+        const order = orders[editingIndex];
+
+        document.getElementById("patient-id").value = order.name;
+        document.getElementById("order-type").value = order.type;
+        document.getElementById("order-details").value = order.details;
+        document.getElementById("card-name").value = order.cardName;
+        document.getElementById("card-number").value = order.cardNumber;
+        document.getElementById("expiry").value = order.expiry;
+        document.getElementById("cvv").value = order.cvv;
+      }
     }
 
     function confirmOrder() {
+      let orders = JSON.parse(localStorage.getItem("orders")) || [];
+      const newOrder = {
+        name: document.getElementById("patient-id").value,
+        type: document.getElementById("order-type").value,
+        details: document.getElementById("order-details").value,
+        cardName: document.getElementById("card-name").value,
+        cardNumber: document.getElementById("card-number").value,
+        expiry: document.getElementById("expiry").value,
+        cvv: document.getElementById("cvv").value
+      };
+
+      if (editingIndex !== null) {
+        orders[editingIndex] = newOrder;
+        editingIndex = null;
+      } else {
+        orders.push(newOrder);
+      }
+
+      localStorage.setItem("orders", JSON.stringify(orders));
+
       alert("✅ Your order has been finalized! Thank you.");
       closePopup('successPopup');
-      form.reset(); // clear form after confirmation (optional)
+      form.reset();
     }
 
     function closePopup(id) {
       document.getElementById(id).style.display = "none";
+    }
+
+    // Optional: If editing from history page
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('edit')) {
+        editingIndex = parseInt(urlParams.get('edit'));
+        const orders = JSON.parse(localStorage.getItem("orders")) || [];
+        const order = orders[editingIndex];
+        if (order) {
+          document.getElementById("patient-id").value = order.name;
+          document.getElementById("order-type").value = order.type;
+          document.getElementById("order-details").value = order.details;
+          document.getElementById("card-name").value = order.cardName;
+          document.getElementById("card-number").value = order.cardNumber;
+          document.getElementById("expiry").value = order.expiry;
+          document.getElementById("cvv").value = order.cvv;
+        }
+      }
     }
   </script>
 
