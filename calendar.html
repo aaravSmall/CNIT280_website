@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Calendar</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
+    header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
+    nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
+    nav a { text-decoration:none; font-weight:bold; color:#31333e; }
+    #calendar { max-width:900px; margin:20px auto; background:white; padding:10px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    .popup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
+    .popup-content { background:white; padding:20px; border-radius:10px; max-width:500px; width:92%; position:relative; }
+    .close-btn { position:absolute; top:10px; right:15px; font-size:20px; cursor:pointer; color:#333; }
+    label { display:block; margin:10px 0 5px; font-weight:bold; }
+    input, select { width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:6px; }
+    button { padding:8px 12px; border-radius:6px; border:none; background:#3b5d5b; color:white; cursor:pointer; }
+    button:hover { background:#2d4443; }
+  </style>
+</head>
+<body>
+  <header><h1>Event Calendar</h1></header>
+  <nav id="navBar"></nav>
+  <div id="calendar"></div>
+
+  <!-- Popup -->
+  <div class="popup" id="eventPopup">
+    <div class="popup-content">
+      <span class="close-btn" onclick="closeEventPopup()">&times;</span>
+      <h2>Event Info</h2>
+      <p id="popupSummary"></p>
+
+      <label for="edit-date">Date (Nov 1–30, 2025):</label>
+      <input type="date" id="edit-date" min="2025-11-01" max="2025-11-30">
+
+      <label for="assign-staff">Assign Staff:</label>
+      <select id="assign-staff">
+        <option value="">- none -</option>
+        <option value="staff1">staff1</option>
+      </select>
+
+      <label for="att">Attendance</label>
+      <input type="number" id="att" min="0">
+
+      <label for="rat">Rating (1-5)</label>
+      <input type="number" id="rat" min="1" max="5">
+
+      <div style="margin-top:10px; text-align:right;">
+        <button onclick="saveEventEdits()">Save</button>
+        <button onclick="markCompleteFromPopup()" style="margin-left:8px;">Mark Complete</button>
+        <button onclick="deleteEventFromPopup()" style="margin-left:8px; background:#c0392b;">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    if(!currentUser){
+      alert("Please login.");
+      window.location.href="login.html";
+    }
+
+    function logout(){ localStorage.removeItem("currentUser"); window.location.href="login.html"; }
+
+    function buildNavBar(user){
+      const nav = document.getElementById('navBar');
+      nav.innerHTML = '';
+      const links = [{text:'Home', href:'homePage.html'}];
+
+      if(user.role==='customer'){
+        links.push({text:'Place an Order', href:'orderForm.html'});
+        links.push({text:'Calendar', href:'calendar.html'});
+        links.push({text:'Order History', href:'orderHistory.html'});
+      } else if(user.role==='admin'){
+        links.push({text:'Calendar', href:'calendar.html'});
+        links.push({text:'Admin Dashboard', href:'adminDashboard.html'});
+      } else if(user.role==='staff'){
+        links.push({text:'Calendar', href:'calendar.html'});
+        links.push({text:'Staff Dashboard', href:'staffDashboard.html'});
+      }
+
+      links.push({text:'Logout', href:'#', onclick:'logout()'});
+      links.forEach(link=>{
+        const a = document.createElement('a');
+        a.textContent = link.text;
+        if(link.href) a.href = link.href;
+        if(link.onclick) a.onclick = () => { window[link.onclick.replace('()','')](); return false; };
+        nav.appendChild(a);
+      });
+    }
+
+    buildNavBar(currentUser);
+
+    function loadEvents(){ return JSON.parse(localStorage.getItem("events")||'[]'); }
+    function saveEvents(arr){ localStorage.setItem("events", JSON.stringify(arr)); }
+
+    let popupCurrentEventId = null;
+
+    document.addEventListener('DOMContentLoaded', function(){
+      const calendarEl = document.getElementById('calendar');
+
+      const calendar = new FullCalendar.Calendar(calendarEl,{
+        initialView:'dayGridMonth',
+        initialDate:'2025-11-01',
+        headerToolbar:{ left:'prev,next today', center:'title', right:'dayGridMonth' },
+        selectable:true,
+        editable: currentUser.role==='admin',
+        select: function(info){
+          if(currentUser.role==='customer'){
+            alert('To book a date, use the Place an Order page.');
+            calendar.unselect();
+            return;
+          }
+          if(currentUser.role==='admin'){
+            const dateStr = info.startStr;
+            if(loadEvents().some(e=>e.date===dateStr)){
+              alert('That date already has an event. One per date.');
+              calendar.unselect();
+              return;
+            }
+            const evObj = { id:String(Date.now()), title:'Admin Event', date:dateStr, completed:false, attendance:0, rating:0, assignedStaff:null, orderInfo:null };
+            const events = loadEvents();
+            events.push(evObj);
+            saveEvents(events);
+            calendar.addEvent({ id:evObj.id, title:evObj.title, start:evObj.date });
+          }
+        },
+        eventClick: function(info){ openEventPopup(loadEvents().find(e=>e.id===info.event.id)); },
+        events: loadEvents().map(e=>({ id:e.id, title:e.title, start:e.date, color:e.completed?'#2ecc71':'' })),
+        eventDrop: function(info){
+          if(currentUser.role!=='admin'){ info.revert(); return; }
+          const newDate = info.event.startStr;
+          if(newDate<'2025-11-01'||newDate>'2025-11-30'){
+            alert('Events must be in Nov 2025.'); info.revert(); return;
+          }
+          const events = loadEvents();
+          if(events.some(e=>e.date===newDate && e.id!==info.event.id)){
+            alert('Date already taken.'); info.revert(); return;
+          }
+          const idx = events.findIndex(e=>e.id===info.event.id);
+          if(idx!==-1){ events[idx].date=newDate; saveEvents(events); }
+        }
+      });
+
+      calendar.render();
+      window._fc_calendar = calendar;
+    });
+
+    function openEventPopup(ev){
+      if(!ev) return;
+      popupCurrentEventId = ev.id;
+      document.getElementById('popupSummary').innerHTML = `
+        <strong>Name:</strong> ${ev.orderInfo?.name || ev.title}<br>
+        <strong>Type:</strong> ${ev.orderInfo?.type || '-'}<br>
+        <strong>Details:</strong> ${ev.orderInfo?.details || '-'}<br>
+        <strong>Status:</strong> ${ev.completed ? 'Complete':'Pending'}<br>
+      `;
+      document.getElementById('edit-date').value = ev.date;
+      document.getElementById('assign-staff').value = ev.assignedStaff||'';
+      document.getElementById('att').value = ev.attendance||0;
+      document.getElementById('rat').value = ev.rating||0;
+
+      if(currentUser.role==='customer'){
+        document.getElementById('edit-date').disabled=true;
+        document.getElementById('assign-staff').disabled=true;
+        document.getElementById('att').disabled=true;
+        document.getElementById('rat').disabled=true;
+      } else if(currentUser.role==='staff'){
+        document.getElementById('edit-date').disabled=true;
+        document.getElementById('assign-staff').disabled=true;
+        document.getElementById('att').disabled=false;
+        document.getElementById('rat').disabled=false;
+      } else {
+        document.getElementById('edit-date').disabled=false;
+        document.getElementById('assign-staff').disabled=false;
+        document.getElementById('att').disabled=false;
+        document.getElementById('rat').disabled=false;
+      }
+      document.getElementById('eventPopup').style.display='flex';
+    }
+
+    function closeEventPopup(){ document.getElementById('eventPopup').style.display='none'; popupCurrentEventId=null; }
+
+    function saveEventEdits(){
+      if(!popupCurrentEventId) return;
+      const events = loadEvents();
+      const idx = events.findIndex(e=>e.id===popupCurrentEventId);
+      if(idx===-1) return;
+
+      const newDate = document.getElementById('edit-date').value;
+      const staff = document.getElementById('assign-staff').value||null;
+      const attendance = parseInt(document.getElementById('att').value)||0;
+      const rating = parseInt(document.getElementById('rat').value)||0;
+
+      if(newDate<'2025-11-01'||newDate>'2025-11-30'){
+        alert('Events must be Nov 1–30, 2025.'); return;
+      }
+      if(events.some(e=>e.date===newDate && e.id!==popupCurrentEventId)){
+        alert('Date taken.'); return;
+      }
+
+      events[idx].date=newDate;
+      events[idx].assignedStaff=staff;
+      events[idx].attendance=attendance;
+      events[idx].rating=rating;
+      if(events[idx].orderInfo?.name) events[idx].title=events[idx].orderInfo.name;
+      saveEvents(events);
+
+      const cal = window._fc_calendar;
+      if(cal){ cal.removeAllEvents(); loadEvents().forEach(e=>cal.addEvent({ id:e.id, title:e.title, start:e.date, color:e.completed?'#2ecc71':'' })); }
+
+      closeEventPopup();
+      alert('Saved changes.');
+    }
+
+    function deleteEventFromPopup(){
+      if(!popupCurrentEventId) return;
+      if(!confirm('Delete this event?')) return;
+      const events = loadEvents();
+      const idx = events.findIndex(e=>e.id===popupCurrentEventId);
+      if(idx!==-1) events.splice(idx,1);
+      saveEvents(events);
+
+      const cal = window._fc_calendar;
+      if(cal){ cal.removeAllEvents(); loadEvents().forEach(e=>cal.addEvent({ id:e.id, title:e.title, start:e.date, color:e.completed?'#2ecc71':'' })); }
+
+      closeEventPopup();
+    }
+
+    function markCompleteFromPopup(){
+      if(!popupCurrentEventId) return;
+      const events = loadEvents();
+      const idx = events.findIndex(e=>e.id===popupCurrentEventId);
+      if(idx!==-1){ events[idx].completed=true; saveEvents(events); }
+      const cal = window._fc_calendar;
+      if(cal){ cal.getEventById(popupCurrentEventId)?.setProp('color','#2ecc71'); }
+      closeEventPopup();
+    }
+  </script>
+</body>
+</html>

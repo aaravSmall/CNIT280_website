@@ -1,33 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Prototype Website</title>
+  <meta charset="utf-8" />
+  <title>City Dome & Convention Center</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f9; color: #333; }
-    header { background: #3b5d5b; color: white; padding: 15px; text-align: center; }
-    nav { display: flex; justify-content: center; background: #ece0d7; padding: 10px; }
-    nav a { margin: 0 15px; text-decoration: none; font-weight: bold; color: #31333e; }
-    nav a:hover { text-decoration: underline; }
-    .container { max-width: 700px; margin: 20px auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
+    header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
+    nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
+    nav a { text-decoration:none; font-weight:bold; color:#31333e; }
+    .container { max-width:900px; margin:24px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    .roleNote { margin-top:8px; color:#555; font-size:0.95em; }
+    .small { font-size:0.95em; color:#666; margin-top:10px; }
+    button { background:#3b5d5b; color:white; padding:8px 12px; border-radius:6px; border:none; cursor:pointer; }
   </style>
 </head>
 <body>
   <header>
     <h1>City Dome & Convention Center</h1>
-    <p>Prototype Website</p>
+    <p id="roleLabel" style="margin:4px 0 0; font-weight:600;"></p>
   </header>
 
-  <nav>
-    <a href="homePage.html">Home</a>
-    <a href="orderForm.html">Place an Order</a>
-    <a href="orderHistory.html">Order History</a>
-    <a href="login.html">Logout</a>
-  </nav>
+  <nav id="navBar"></nav>
 
   <div class="container">
     <h2>Welcome</h2>
     <p>This is the prototype homepage. Use the menu above to navigate.</p>
+    <p class="roleNote" id="roleNote"></p>
+    <p class="small">Quick links: calendar, order form (customers), dashboards (admins/staff).</p>
   </div>
+
+  <script>
+    // Render nav based on logged-in user role
+    const user = JSON.parse(localStorage.getItem('currentUser')||'null');
+    const nav = document.getElementById('navBar');
+    if(!user){
+      // not logged in: only show login
+      nav.innerHTML = `<a href="login.html">Login</a>`;
+      document.getElementById('roleLabel').textContent = 'Not logged in';
+      document.getElementById('roleNote').textContent = 'Please login to use the prototype.';
+    } else {
+      // role-specific nav
+      let html = `<a href="homePage.html">Home</a> `;
+      // calendar visible to all roles
+      html += `<a href="calendar.html">Calendar</a> `;
+      if(user.role === 'customer'){
+        html += `<a href="orderForm.html">Place an Order</a> <a href="orderHistory.html">Order History</a>`;
+        document.getElementById('roleNote').textContent = 'You are logged in as CUSTOMER. Use "Place an Order" to schedule events (Nov 1–30, 2025).';
+      } else if(user.role === 'admin'){
+        html += `<a href="adminDashboard.html">Admin Dashboard</a>`;
+        document.getElementById('roleNote').textContent = 'You are logged in as ADMIN. Manage the calendar and events here.';
+      } else if(user.role === 'staff'){
+        html += `<a href="staffDashboard.html">Staff Dashboard</a>`;
+        document.getElementById('roleNote').textContent = 'You are logged in as STAFF. View events and update attendance/rating.';
+      }
+      html += ` <a href="login.html" onclick="logout(event)">Logout</a>`;
+      nav.innerHTML = html;
+      document.getElementById('roleLabel').textContent = `${user.username} — ${user.role.toUpperCase()}`;
+    }
+
+    function logout(e){
+      // let login page handle storage clearing; still remove here
+      e.preventDefault();
+      localStorage.removeItem('currentUser');
+      window.location.href = 'login.html';
+    }
+  </script>
 </body>
 </html>

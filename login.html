@@ -4,90 +4,61 @@
   <meta charset="UTF-8">
   <title>Login</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      width: 300px;
-    }
-    h2 {
-      text-align: center;
-      color: #3b5d5b;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #3b5d5b;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #2d4443;
-    }
-    .error {
-      color: red;
-      text-align: center;
-      margin-top: 10px;
-    }
+    body { font-family: Arial, sans-serif; background:#f4f4f9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
+    .login-container { background:white; padding:30px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); width:300px; }
+    h2 { text-align:center; color:#3b5d5b; }
+    label { display:block; margin-top:15px; font-weight:bold; }
+    input { width:100%; padding:8px; margin-top:6px; border-radius:6px; border:1px solid #ccc; }
+    button { width:100%; padding:10px; margin-top:20px; border:none; border-radius:6px; background:#3b5d5b; color:white; cursor:pointer; font-weight:bold; }
+    button:hover { background:#2d4443; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Login</h2>
-    <form id="loginForm">
-      <input type="text" id="username" placeholder="Username" required>
-      <input type="password" id="password" placeholder="Password" required>
-      <button type="submit">Login</button>
-      <div class="error" id="errorMsg"></div>
-    </form>
-  </div>
 
-  <script>
-    const loginForm = document.getElementById("loginForm");
-    loginForm.addEventListener("submit", function(e) {
-      e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
+<div class="login-container">
+  <h2>Login</h2>
 
-      // Example credentials
-      const users = [
-        {username: "customer1", password: "pass123", role: "customer"},
-        {username: "admin1", password: "admin123", role: "admin"}
-      ];
+  <label for="username">Username:</label>
+  <input type="text" id="username" required>
 
-      const user = users.find(u => u.username === username && u.password === password);
+  <label for="password">Password:</label>
+  <input type="password" id="password" required>
 
-      if(user) {
-        localStorage.setItem("currentUser", JSON.stringify(user));
-        if(user.role === "customer") {
-          window.location.href = "orderForm.html";
-        } else {
-          window.location.href = "adminDashboard.html";
-        }
-      } else {
-        document.getElementById("errorMsg").textContent = "Invalid username or password!";
-      }
-    });
-  </script>
+  <button onclick="login()">Login</button>
+</div>
+
+<script>
+  function login() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+
+    if(!username || !password) {
+      alert('Please enter both username and password.');
+      return;
+    }
+
+    // Demo users with fixed role
+    const demoUsers = [
+      {username:'customer1', password:'pass123', role:'customer'},
+      {username:'admin1', password:'admin123', role:'admin'},
+      {username:'staff1', password:'staff123', role:'staff'}
+    ];
+
+    const user = demoUsers.find(u => u.username === username && u.password === password);
+    if(!user){
+      alert('Invalid username or password.');
+      return;
+    }
+
+    // Save current user
+    localStorage.setItem('currentUser', JSON.stringify({ username, role: user.role }));
+
+    // Redirect based on role
+    if(user.role === 'customer') window.location.href = 'homePage.html';
+    else if(user.role === 'admin') window.location.href = 'adminDashboard.html';
+    else if(user.role === 'staff') window.location.href = 'staffDashboard.html';
+  }
+</script>
+
 </body>
 </html>
