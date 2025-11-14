@@ -40,6 +40,13 @@ input, select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px
     <div class="metric"><strong id="avgRating">0</strong><div>Avg Rating</div></div>
   </div>
 
+  <h2>Utilization & Peak Time Reports (Req 801 & 802)</h2>
+  <div id="reportsContainer" style="background:#f7f7f7;padding:12px;border-radius:8px;">
+    <p><strong>Utilization Rate:</strong> <span id="utilizationRate">0%</span></p>
+    <p><strong>Peak Booking Day:</strong> <span id="peakDay">N/A</span></p>
+  </div>
+
+
   <!-- Events Table -->
   <h2>Active Orders</h2>
   <table>
@@ -207,6 +214,22 @@ function markPaid(invoiceNum){
   saveInvoices(invoices);
   renderInvoices();
 }
+
+function renderReports(){
+  const events = JSON.parse(localStorage.getItem('events')||'[]');
+  const totalDays = 30;
+  const bookedDays = new Set(events.map(e=>e.date)).size;
+  const utilization = Math.round((bookedDays / totalDays) * 100);
+  document.getElementById('utilizationRate').textContent = utilization + '%';
+
+  // Peak day logic
+  const dayCount = {};
+  events.forEach(e=> dayCount[e.date] = (dayCount[e.date]||0) + 1);
+  let peak = Object.entries(dayCount).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('peakDay').textContent = peak ? `${peak[0]} (${peak[1]} bookings)` : 'N/A';
+}
+renderReports();
+
 
 loadTable();
 </script>

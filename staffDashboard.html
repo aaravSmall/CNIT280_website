@@ -1,26 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Staff Dashboard</title>
-<style>
-body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
-header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
-nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
-nav a { text-decoration:none; font-weight:bold; color:#31333e; }
-nav a:hover { text-decoration:underline; }
-.container { max-width:900px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
-table { width:100%; border-collapse:collapse; margin-top:12px; }
-th, td { border:1px solid #ccc; padding:10px; text-align:left; }
-th { background:#3b5d5b; color:white; }
-button { background:#3b5d5b; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
-button:hover { background:#2d4443; }
-.popup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
-.popup-content { background:white; padding:20px; border-radius:10px; max-width:520px; width:92%; position:relative; }
-.close-btn { position:absolute; top:10px; right:15px; font-size:20px; cursor:pointer; color:#333; }
-label{display:block;margin-top:8px}
-input{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #ccc}
-</style>
+  <meta charset="UTF-8">
+  <title>Staff Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
+    header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
+    nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
+    nav a { text-decoration:none; font-weight:bold; color:#31333e; }
+    .container { max-width:900px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+    th, td { border:1px solid #ccc; padding:10px; text-align:left; }
+    th { background:#3b5d5b; color:white; }
+    button { background:#3b5d5b; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+    button:hover { background:#2d4443; }
+    label { display:block; margin-top:8px; }
+    input, select, textarea { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; margin-top:4px; }
+  </style>
 </head>
 <body>
 
@@ -32,82 +28,81 @@ input{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #
 </nav>
 
 <div class="container">
-  <table>
+  <h2>Assigned Events</h2>
+  <table id="staffOrdersTable">
     <thead>
       <tr><th>Customer Name</th><th>Order Type</th><th>Status</th><th>Actions</th></tr>
     </thead>
     <tbody id="staffOrdersBody"></tbody>
   </table>
-  <p id="noOrders" style="text-align:center; margin-top:10px; display:none;">No events yet.</p>
-</div>
 
-<div class="popup" id="staffPopup">
-  <div class="popup-content">
-    <span class="close-btn" onclick="closeStaffPopup()">&times;</span>
-    <h2>Event Info</h2>
-    <div id="staffEventSummary"></div>
-
-    <label for="staff-att">Attendance</label>
-    <input type="number" id="staff-att" min="0">
-
-    <label for="staff-rate">Rating (1-5)</label>
-    <input type="number" id="staff-rate" min="1" max="5">
-
+  <h2>Place Vendor Order (Req 601)</h2>
+  <form id="vendorForm">
+    <label for="vendorType">Vendor Type</label>
+    <select id="vendorType">
+      <option value="">-- Select --</option>
+      <option value="Catering">Catering</option>
+      <option value="Audio/Visual">Audio/Visual</option>
+      <option value="Decoration">Decoration</option>
+    </select>
+    <label for="vendorDesc">Description</label>
+    <textarea id="vendorDesc" rows="3" placeholder="Describe required service"></textarea>
+    <label for="vendorDate">Service Date</label>
+    <input type="date" id="vendorDate" min="2025-11-01" max="2025-11-30">
     <div style="text-align:right; margin-top:10px;">
-      <button onclick="saveStaffMetrics()">Save Metrics</button>
+      <button type="submit">Submit Vendor Order</button>
     </div>
-  </div>
+  </form>
+
+  <p id="noOrders" style="text-align:center; margin-top:10px;">No events yet.</p>
 </div>
 
 <script>
-let currentUser = null;
-try { currentUser = JSON.parse(localStorage.getItem("currentUser")); } catch(e){currentUser=null;}
-if(!currentUser || currentUser.role!=='staff'){ alert('Access denied. Only staff.'); window.location.href='login.html'; }
+const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+if(!currentUser || currentUser.role !== 'staff') {
+  alert('Access denied. Only staff can view this page.');
+  window.location.href = 'login.html';
+}
 
 function logout(){ localStorage.removeItem('currentUser'); window.location.href='login.html'; }
 
-function loadEvents(){ return JSON.parse(localStorage.getItem('events')||'[]'); }
+function loadEvents(){ return JSON.parse(localStorage.getItem('events')) || []; }
 function saveEvents(arr){ localStorage.setItem('events', JSON.stringify(arr)); }
 
-function loadTable(){
+function loadTable() {
   const events = loadEvents();
-  const tbody = document.getElementById('staffOrdersBody'); tbody.innerHTML='';
-  document.getElementById('noOrders').style.display = events.length ? 'none':'block';
-  events.forEach(ev=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${ev.title}</td><td>${ev.orderInfo?.type||'-'}</td><td>${ev.completed?'Complete':'Pending'}</td>
-      <td><button onclick="openStaffPopup('${ev.id}')">More Info</button></td>`;
+  const tbody = document.getElementById('staffOrdersBody');
+  tbody.innerHTML = '';
+  if (events.length === 0) { document.getElementById('noOrders').style.display='block'; } 
+  else { document.getElementById('noOrders').style.display='none'; }
+  events.forEach(ev => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${ev.title}</td><td>${ev.orderInfo?.type || '-'}</td><td>${ev.completed ? 'Complete' : 'Pending'}</td>
+      <td><button onclick="alert('View details in calendar')">View</button></td>`;
     tbody.appendChild(tr);
   });
 }
-
-let staffPopupId=null;
-function openStaffPopup(id){
-  const ev = loadEvents().find(e=>e.id===id); if(!ev) return; staffPopupId=id;
-  document.getElementById('staffEventSummary').innerHTML=
-    `<strong>Name:</strong> ${ev.title}<br><strong>Date:</strong> ${ev.date}<br>
-    <strong>Details:</strong> ${ev.orderInfo?.details||'-'}<br><strong>Status:</strong> ${ev.completed?'Complete':'Pending'}`;
-  document.getElementById('staff-att').value=ev.attendance||0;
-  document.getElementById('staff-rate').value=ev.rating||0;
-  document.getElementById('staffPopup').style.display='flex';
-}
-
-function closeStaffPopup(){ staffPopupId=null; document.getElementById('staffPopup').style.display='none'; }
-
-function saveStaffMetrics(){
-  if(!staffPopupId) return;
-  const events = loadEvents();
-  const idx = events.findIndex(e=>e.id===staffPopupId);
-  if(idx===-1) return;
-  events[idx].attendance=parseInt(document.getElementById('staff-att').value)||0;
-  events[idx].rating=parseInt(document.getElementById('staff-rate').value)||0;
-  saveEvents(events);
-  closeStaffPopup();
-  loadTable();
-  alert('Metrics saved.');
-}
-
 loadTable();
+
+// Vendor order submission
+document.getElementById('vendorForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const type = document.getElementById('vendorType').value;
+  const desc = document.getElementById('vendorDesc').value.trim();
+  const date = document.getElementById('vendorDate').value;
+  if(!type || !desc || !date){ alert('Please fill out all vendor fields.'); return; }
+  const vendorOrders = JSON.parse(localStorage.getItem('vendorOrders')||'[]');
+  vendorOrders.push({
+    id: 'V'+Date.now(),
+    vendorType:type,
+    description:desc,
+    date,
+    status:'Pending'
+  });
+  localStorage.setItem('vendorOrders', JSON.stringify(vendorOrders));
+  alert('Vendor order submitted successfully!');
+  document.getElementById('vendorForm').reset();
+});
 </script>
 </body>
 </html>

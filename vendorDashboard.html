@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vendor Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
+    header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
+    .container { max-width:900px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th, td { border:1px solid #ccc; padding:10px; text-align:left; }
+    th { background:#3b5d5b; color:white; }
+    button { background:#3b5d5b; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+  </style>
+</head>
+<body>
+<header><h1>Vendor Dashboard</h1></header>
+<div class="container">
+  <h2>Assigned Vendor Requests</h2>
+  <table>
+    <thead>
+      <tr><th>Vendor Type</th><th>Description</th><th>Date</th><th>Status</th><th>Action</th></tr>
+    </thead>
+    <tbody id="vendorBody"></tbody>
+  </table>
+</div>
+<script>
+function loadVendors(){ return JSON.parse(localStorage.getItem('vendorOrders')||'[]'); }
+function saveVendors(arr){ localStorage.setItem('vendorOrders', JSON.stringify(arr)); }
+
+function loadTable(){
+  const tbody=document.getElementById('vendorBody');
+  const vendors=loadVendors();
+  tbody.innerHTML='';
+  vendors.forEach(v=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${v.vendorType}</td><td>${v.description}</td><td>${v.date}</td><td>${v.status}</td>
+      <td>${v.status==='Pending'?`<button onclick="markDone('${v.id}')">Mark Done</button>`:''}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+function markDone(id){
+  const arr=loadVendors();
+  const i=arr.findIndex(v=>v.id===id);
+  if(i!==-1){ arr[i].status='Completed'; saveVendors(arr); loadTable(); alert('Marked complete.'); }
+}
+loadTable();
+</script>
+</body>
+</html>
