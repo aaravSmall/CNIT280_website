@@ -1,108 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Staff Dashboard</title>
+  <meta charset="utf-8" />
+  <title>City Dome & Convention Center</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
-    header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
+    header { background:#3b5d5b; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center; }
+    header h1 { margin:0; }
     nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
     nav a { text-decoration:none; font-weight:bold; color:#31333e; }
-    .container { max-width:900px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
-    table { width:100%; border-collapse:collapse; margin-bottom:20px; }
-    th, td { border:1px solid #ccc; padding:10px; text-align:left; }
-    th { background:#3b5d5b; color:white; }
-    button { background:#3b5d5b; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
-    button:hover { background:#2d4443; }
-    label { display:block; margin-top:8px; }
-    input, select, textarea { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; margin-top:4px; }
+    .container { max-width:900px; margin:24px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    .roleNote { margin-top:8px; color:#555; font-size:0.95em; }
+    .small { font-size:0.95em; color:#666; margin-top:10px; }
+    #notifications { background:#f7f7f7; border-radius:8px; padding:10px; margin-top:15px; }
+    select { border-radius:6px; padding:4px 6px; border:1px solid #ccc; }
   </style>
 </head>
 <body>
-
-<header><h1>Staff Dashboard</h1></header>
-<nav>
-  <a href="homePage.html">Home</a>
-  <a href="calendar.html">Calendar</a>
-  <a href="#" onclick="logout()">Logout</a>
-</nav>
-
-<div class="container">
-  <h2>Assigned Events</h2>
-  <table id="staffOrdersTable">
-    <thead>
-      <tr><th>Customer Name</th><th>Order Type</th><th>Status</th><th>Actions</th></tr>
-    </thead>
-    <tbody id="staffOrdersBody"></tbody>
-  </table>
-
-  <h2>Place Vendor Order (Req 601)</h2>
-  <form id="vendorForm">
-    <label for="vendorType">Vendor Type</label>
-    <select id="vendorType">
-      <option value="">-- Select --</option>
-      <option value="Catering">Catering</option>
-      <option value="Audio/Visual">Audio/Visual</option>
-      <option value="Decoration">Decoration</option>
-    </select>
-    <label for="vendorDesc">Description</label>
-    <textarea id="vendorDesc" rows="3" placeholder="Describe required service"></textarea>
-    <label for="vendorDate">Service Date</label>
-    <input type="date" id="vendorDate" min="2025-11-01" max="2025-11-30">
-    <div style="text-align:right; margin-top:10px;">
-      <button type="submit">Submit Vendor Order</button>
+  <header>
+    <div>
+      <h1 data-i18n="title">City Dome & Convention Center</h1>
+      <p id="roleLabel" style="margin:4px 0 0; font-weight:600;"></p>
     </div>
-  </form>
+    <div>
+      <label for="langSelect" style="font-size:0.9em;">🌐</label>
+      <select id="langSelect">
+        <option value="en">EN</option>
+        <option value="es">ES</option>
+        <option value="fr">FR</option>
+      </select>
+    </div>
+  </header>
 
-  <p id="noOrders" style="text-align:center; margin-top:10px;">No events yet.</p>
-</div>
+  <nav id="navBar"></nav>
 
-<script>
-const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-if(!currentUser || currentUser.role !== 'staff') {
-  alert('Access denied. Only staff can view this page.');
-  window.location.href = 'login.html';
-}
+  <div class="container">
+    <h2 data-i18n="welcomeHeading">Welcome</h2>
+    <p data-i18n="welcomeText">This is the prototype homepage. Use the menu above to navigate.</p>
+    <p class="roleNote" id="roleNote"></p>
+    <p class="small" data-i18n="quickLinks">Quick links: calendar, order form (customers), dashboards (admins/staff).</p>
 
-function logout(){ localStorage.removeItem('currentUser'); window.location.href='login.html'; }
+    <div id="notifications"></div>
+  </div>
 
-function loadEvents(){ return JSON.parse(localStorage.getItem('events')) || []; }
-function saveEvents(arr){ localStorage.setItem('events', JSON.stringify(arr)); }
+  <script>
+    const translations = {
+      en: {
+        title: "City Dome & Convention Center",
+        welcomeHeading: "Welcome",
+        welcomeText: "This is the prototype homepage. Use the menu above to navigate.",
+        quickLinks: "Quick links: calendar, order form (customers), dashboards (admins/staff).",
+        customerRoleNote: "You are logged in as CUSTOMER. Use \"Place an Order\" to schedule events (Nov 1–30, 2025).",
+        adminRoleNote: "You are logged in as ADMIN. Manage the calendar and events here.",
+        staffRoleNote: "You are logged in as STAFF. View events and update attendance/rating.",
+        notifTitle: "Upcoming Events (Next 3 Days)",
+        notifNone: "You have no upcoming events in the next 3 days.",
+      },
+      es: {
+        title: "Centro de Convenciones City Dome",
+        welcomeHeading: "Bienvenido",
+        welcomeText: "Esta es la página de inicio del prototipo. Usa el menú de arriba para navegar.",
+        quickLinks: "Enlaces rápidos: calendario, formulario de reserva (clientes), paneles (administradores/personal).",
+        customerRoleNote: "Has iniciado sesión como CLIENTE. Usa \"Realizar un pedido\" para programar eventos (1–30 de noviembre de 2025).",
+        adminRoleNote: "Has iniciado sesión como ADMIN. Administra el calendario y los eventos aquí.",
+        staffRoleNote: "Has iniciado sesión como PERSONAL. Ve eventos y actualiza asistencia/calificación.",
+        notifTitle: "Próximos eventos (próximos 3 días)",
+        notifNone: "No tienes eventos próximos en los próximos 3 días.",
+      },
+      fr: {
+        title: "Centre de congrès City Dome",
+        welcomeHeading: "Bienvenue",
+        welcomeText: "Ceci est la page d’accueil du prototype. Utilisez le menu ci-dessus pour naviguer.",
+        quickLinks: "Liens rapides : calendrier, formulaire de réservation (clients), tableaux de bord (administrateurs/personnel).",
+        customerRoleNote: "Vous êtes connecté en tant que CLIENT. Utilisez « Passer une commande » pour planifier des événements (1–30 novembre 2025).",
+        adminRoleNote: "Vous êtes connecté en tant qu’ADMIN. Gérez le calendrier et les événements ici.",
+        staffRoleNote: "Vous êtes connecté en tant que MEMBRE DU PERSONNEL. Consultez les événements et mettez à jour la participation/la note.",
+        notifTitle: "Événements à venir (3 prochains jours)",
+        notifNone: "Vous n’avez aucun événement à venir dans les 3 prochains jours.",
+      }
+    };
 
-function loadTable() {
-  const events = loadEvents();
-  const tbody = document.getElementById('staffOrdersBody');
-  tbody.innerHTML = '';
-  if (events.length === 0) { document.getElementById('noOrders').style.display='block'; } 
-  else { document.getElementById('noOrders').style.display='none'; }
-  events.forEach(ev => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${ev.title}</td><td>${ev.orderInfo?.type || '-'}</td><td>${ev.completed ? 'Complete' : 'Pending'}</td>
-      <td><button onclick="alert('View details in calendar')">View</button></td>`;
-    tbody.appendChild(tr);
-  });
-}
-loadTable();
+    const user = JSON.parse(localStorage.getItem('currentUser')||'null');
+    const nav = document.getElementById('navBar');
+    const roleLabel = document.getElementById('roleLabel');
+    const roleNote = document.getElementById('roleNote');
 
-// Vendor order submission
-document.getElementById('vendorForm').addEventListener('submit', e=>{
-  e.preventDefault();
-  const type = document.getElementById('vendorType').value;
-  const desc = document.getElementById('vendorDesc').value.trim();
-  const date = document.getElementById('vendorDate').value;
-  if(!type || !desc || !date){ alert('Please fill out all vendor fields.'); return; }
-  const vendorOrders = JSON.parse(localStorage.getItem('vendorOrders')||'[]');
-  vendorOrders.push({
-    id: 'V'+Date.now(),
-    vendorType:type,
-    description:desc,
-    date,
-    status:'Pending'
-  });
-  localStorage.setItem('vendorOrders', JSON.stringify(vendorOrders));
-  alert('Vendor order submitted successfully!');
-  document.getElementById('vendorForm').reset();
-});
-</script>
+    function renderNav(){
+      if(!user){
+        nav.innerHTML = `<a href="login.html">Login</a>`;
+        roleLabel.textContent = 'Not logged in';
+        roleNote.textContent = 'Please login to use the prototype.';
+        return;
+      }
+      let html = `<a href="homePage.html">Home</a> <a href="calendar.html">Calendar</a> `;
+      if(user.role === 'customer'){
+        html += `<a href="orderForm.html">Place an Order</a> <a href="orderHistory.html">Order History</a>`;
+      } else if(user.role === 'admin'){
+        html += `<a href="adminDashboard.html">Admin Dashboard</a>`;
+      } else if(user.role === 'staff'){
+        html += `<a href="staffDashboard.html">Staff Dashboard</a>`;
+      }
+      html += ` <a href="login.html" onclick="logout(event)">Logout</a>`;
+      nav.innerHTML = html;
+      roleLabel.textContent = `${user.username} — ${user.role.toUpperCase()}`;
+    }
+
+    function logout(e){
+      e.preventDefault();
+      localStorage.removeItem('currentUser');
+      window.location.href = 'login.html';
+    }
+
+    function applyLanguage(lang){
+      const t = translations[lang] || translations.en;
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const key = el.getAttribute('data-i18n');
+        if(t[key]) el.textContent = t[key];
+      });
+      if(user){
+        if(user.role === 'customer') roleNote.textContent = t.customerRoleNote;
+        else if(user.role === 'admin') roleNote.textContent = t.adminRoleNote;
+        else if(user.role === 'staff') roleNote.textContent = t.staffRoleNote;
+      }
+      // update notifications text if already rendered
+      const notifBox = document.getElementById('notifications');
+      if(notifBox.dataset.empty === 'true'){
+        notifBox.innerHTML = `<h3>${t.notifTitle}</h3><p>${t.notifNone}</p>`;
+      } else if(notifBox.dataset.title === 'set'){
+        notifBox.querySelector('h3').textContent = t.notifTitle;
+      }
+    }
+
+    // 901: client automated notifications
+    function renderClientNotifications(){
+      const notifBox = document.getElementById('notifications');
+      if(!user || user.role!=='customer'){
+        notifBox.innerHTML = '';
+        return;
+      }
+      const events = JSON.parse(localStorage.getItem('events')||'[]');
+      const now = new Date();
+      const threeDaysAhead = new Date(now.getTime() + 3*24*60*60*1000);
+      const myEvents = events.filter(e=>{
+        if(!e.orderInfo || e.orderInfo.customer !== user.username) return false;
+        if(!e.date || e.completed) return false;
+        const d = new Date(e.date);
+        return d >= now && d <= threeDaysAhead;
+      });
+      const lang = document.getElementById('langSelect').value || 'en';
+      const t = translations[lang] || translations.en;
+
+      if(!myEvents.length){
+        notifBox.dataset.empty = 'true';
+        notifBox.dataset.title = 'set';
+        notifBox.innerHTML = `<h3>${t.notifTitle}</h3><p>${t.notifNone}</p>`;
+        return;
+      }
+      notifBox.dataset.empty = 'false';
+      notifBox.dataset.title = 'set';
+      let html = `<h3>${t.notifTitle}</h3><ul>`;
+      myEvents.forEach(e=>{
+        html += `<li><strong>${e.orderInfo.name}</strong> — ${e.orderInfo.type} on ${e.date}</li>`;
+      });
+      html += '</ul>';
+      notifBox.innerHTML = html;
+    }
+
+    renderNav();
+
+    const langSelect = document.getElementById('langSelect');
+    langSelect.addEventListener('change', ()=>{
+      const lang = langSelect.value;
+      applyLanguage(lang);
+      renderClientNotifications();
+    });
+
+    // initial
+    applyLanguage('en');
+    renderClientNotifications();
+  </script>
 </body>
 </html>

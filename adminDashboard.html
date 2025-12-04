@@ -9,20 +9,23 @@ header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
 nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
 nav a { text-decoration:none; font-weight:bold; color:#31333e; }
 nav a:hover { text-decoration:underline; }
-.container { max-width:1000px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+.container { max-width:1100px; margin:20px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
 table { width:100%; border-collapse:collapse; margin-top:12px; }
 th, td { border:1px solid #ccc; padding:10px; text-align:left; }
 th { background:#3b5d5b; color:white; }
 button { background:#3b5d5b; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
 button:hover { background:#2d4443; }
-.metrics { display:flex; gap:20px; margin-bottom:12px; }
-.metric { background:#f7f7f7; padding:10px; border-radius:8px; flex:1; text-align:center; }
+.metrics { display:flex; flex-wrap:wrap; gap:20px; margin-bottom:12px; }
+.metric { background:#f7f7f7; padding:10px; border-radius:8px; flex:1 1 180px; text-align:center; }
 .popup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
 .popup-content { background:white; padding:20px; border-radius:10px; max-width:520px; width:92%; position:relative; }
 .close-btn { position:absolute; top:10px; right:15px; font-size:20px; cursor:pointer; color:#333; }
 label{display:block;margin-top:8px}
 input, select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #ccc}
+#reportsContainer { background:#f7f7f7; padding:12px; border-radius:8px; margin-top:18px; }
 </style>
+<!-- Graphs for 1002 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -34,21 +37,32 @@ input, select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px
 </nav>
 
 <div class="container">
+  <!-- KPI DASHBOARD (1001) -->
+  <h2>Leadership KPI Dashboard</h2>
   <div class="metrics" id="summaryMetrics">
     <div class="metric"><strong id="totalEvents">0</strong><div>Total Events</div></div>
+    <div class="metric"><strong id="completedEvents">0</strong><div>Completed Events</div></div>
+    <div class="metric"><strong id="pendingEvents">0</strong><div>Pending Events</div></div>
     <div class="metric"><strong id="avgAttendance">0</strong><div>Avg Attendance</div></div>
     <div class="metric"><strong id="avgRating">0</strong><div>Avg Rating</div></div>
+    <div class="metric"><strong id="totalRevenue">0</strong><div>Est. Revenue</div></div>
+    <div class="metric"><strong id="paidInvoices">0</strong><div>Paid Invoices</div></div>
+    <div class="metric"><strong id="pendingInvoices">0</strong><div>Pending Invoices</div></div>
   </div>
 
-  <h2>Utilization & Peak Time Reports (Req 801 & 802)</h2>
-  <div id="reportsContainer" style="background:#f7f7f7;padding:12px;border-radius:8px;">
+  <!-- UTILIZATION & PEAK TIME (801, 802 extended) -->
+  <h3>Utilization & Peak Time Reports</h3>
+  <div id="reportsContainer">
     <p><strong>Utilization Rate:</strong> <span id="utilizationRate">0%</span></p>
     <p><strong>Peak Booking Day:</strong> <span id="peakDay">N/A</span></p>
   </div>
 
+  <!-- GRAPHICAL METRICS (1002) -->
+  <h3 style="margin-top:20px;">Graphical Metrics</h3>
+  <canvas id="eventsPerTypeChart" style="max-width:600px; margin-top:10px;"></canvas>
 
-  <!-- Events Table -->
-  <h2>Active Orders</h2>
+  <!-- ACTIVE ORDERS -->
+  <h2 style="margin-top:30px;">Active Orders</h2>
   <table>
     <thead>
       <tr><th>Customer Name</th><th>Order Type</th><th>Status</th><th>Actions</th></tr>
@@ -57,7 +71,7 @@ input, select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px
   </table>
   <p id="noOrders" style="text-align:center; margin-top:10px; display:none;">No events yet.</p>
 
-  <!-- Historical Events -->
+  <!-- HISTORICAL ORDERS (702) -->
   <h2>Historical Orders</h2>
   <table>
     <thead>
@@ -66,7 +80,7 @@ input, select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px
     <tbody id="historicalOrdersBody"></tbody>
   </table>
 
-  <!-- Finance Table -->
+  <!-- INVOICES (501, 502) -->
   <h2>Invoices & Payments</h2>
   <table>
     <thead>
@@ -76,6 +90,7 @@ input, select{width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px
   </table>
 </div>
 
+<!-- POPUP -->
 <div class="popup" id="orderPopup">
   <div class="popup-content">
     <span class="close-btn" onclick="closePopup()">&times;</span>
@@ -117,18 +132,85 @@ function saveInvoices(arr){ localStorage.setItem('invoices', JSON.stringify(arr)
 
 function renderSummary(){
   const events = loadEvents();
-  document.getElementById('totalEvents').textContent = events.length;
+  const invoices = loadInvoices();
+  const total = events.length;
+  const completed = events.filter(e=>e.completed).length;
+  const pending = total - completed;
+  document.getElementById('totalEvents').textContent = total;
+  document.getElementById('completedEvents').textContent = completed;
+  document.getElementById('pendingEvents').textContent = pending;
+
   const attArr = events.filter(e=>e.attendance!=null).map(e=>e.attendance);
   document.getElementById('avgAttendance').textContent = attArr.length ? Math.round(attArr.reduce((a,b)=>a+b,0)/attArr.length) : 0;
+
   const rArr = events.filter(e=>e.rating>0).map(e=>e.rating);
   document.getElementById('avgRating').textContent = rArr.length ? (rArr.reduce((a,b)=>a+b,0)/rArr.length).toFixed(1) : 0;
+
+  const revenue = events.reduce((sum,e)=> sum + ((e.attendance||0)*10 + 50), 0);
+  document.getElementById('totalRevenue').textContent = '$' + revenue;
+
+  const paid = invoices.filter(i=>i.status==='Paid').length;
+  const pendInv = invoices.filter(i=>i.status==='Pending').length;
+  document.getElementById('paidInvoices').textContent = paid;
+  document.getElementById('pendingInvoices').textContent = pendInv;
+}
+
+function renderReports(){
+  const events = loadEvents();
+  const totalDays = 30;
+  const bookedDays = new Set(events.map(e=>e.date)).size;
+  const utilization = Math.round((bookedDays / totalDays) * 100);
+  document.getElementById('utilizationRate').textContent = utilization + '%';
+
+  const dayCount = {};
+  events.forEach(e=> {
+    if(!e.date) return;
+    dayCount[e.date] = (dayCount[e.date]||0) + 1;
+  });
+  const entries = Object.entries(dayCount);
+  let peak = null;
+  if(entries.length){
+    entries.sort((a,b)=>b[1]-a[1]);
+    peak = entries[0];
+  }
+  document.getElementById('peakDay').textContent = peak ? `${peak[0]} (${peak[1]} bookings)` : 'N/A';
+}
+
+let eventsChart = null;
+function renderCharts(){
+  const events = loadEvents();
+  const typeCounts = {};
+  events.forEach(e=>{
+    const t = e.orderInfo?.type || e.type || 'Other';
+    typeCounts[t] = (typeCounts[t]||0) + 1;
+  });
+  const labels = Object.keys(typeCounts);
+  const data = Object.values(typeCounts);
+  const ctx = document.getElementById('eventsPerTypeChart').getContext('2d');
+  if(eventsChart) eventsChart.destroy();
+  eventsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Events per Type',
+        data,
+      }]
+    },
+    options: {
+      responsive:true,
+      scales:{ y:{ beginAtZero:true } }
+    }
+  });
 }
 
 function loadTable(){
   const events = loadEvents();
-  const tbody = document.getElementById('adminOrdersBody'); tbody.innerHTML='';
-  const histBody = document.getElementById('historicalOrdersBody'); histBody.innerHTML='';
+  const tbody = document.getElementById('adminOrdersBody'); 
+  const histBody = document.getElementById('historicalOrdersBody');
+  tbody.innerHTML=''; histBody.innerHTML='';
   document.getElementById('noOrders').style.display = events.length ? 'none':'block';
+
   events.forEach(ev=>{
     if(ev.completed){
       const tr=document.createElement('tr');
@@ -144,6 +226,8 @@ function loadTable(){
 
   renderSummary();
   renderInvoices();
+  renderReports();
+  renderCharts();
 }
 
 let popupId=null;
@@ -160,16 +244,22 @@ function openAdminPopup(id){
 function closePopup(){ document.getElementById('orderPopup').style.display='none'; popupId=null; }
 
 function saveAdminEdits(){
-  if(!popupId) return; const events=loadEvents(); const idx=events.findIndex(e=>e.id===popupId);
+  if(!popupId) return; 
+  const events=loadEvents(); 
+  const idx=events.findIndex(e=>e.id===popupId);
   if(idx===-1) return;
   const newDate=document.getElementById('admin-date').value;
   if(newDate<'2025-11-01'||newDate>'2025-11-30'){alert('Date must be in Nov 2025.'); return;}
-  const conflict=events.some((ev,i)=>ev.date===newDate && ev.id!==popupId); if(conflict){alert('Date already taken.'); return;}
+  const conflict=events.some((ev)=>ev.date===newDate && ev.id!==popupId); 
+  if(conflict){alert('Date already taken.'); return;}
   events[idx].date=newDate;
   events[idx].assignedStaff=document.getElementById('admin-staff').value||null;
   events[idx].attendance=parseInt(document.getElementById('admin-att').value)||0;
   events[idx].rating=parseInt(document.getElementById('admin-rate').value)||0;
-  saveEvents(events); closePopup(); loadTable(); alert('Saved.');
+  saveEvents(events); 
+  closePopup(); 
+  loadTable(); 
+  alert('Saved.');
 }
 
 function markCompleteAdmin(){ 
@@ -179,57 +269,56 @@ function markCompleteAdmin(){
   if(idx===-1) return;
   events[idx].completed=true; 
   saveEvents(events); 
+  generateInvoice(events[idx]);
   closePopup(); 
   loadTable(); 
-  generateInvoice(events[idx]); // 501 & 502
 }
 
-function deleteEventAdmin(){ if(!popupId || !confirm('Delete event?')) return;
-let events=loadEvents(); events=events.filter(e=>e.id!==popupId); saveEvents(events); closePopup(); loadTable(); }
+function deleteEventAdmin(){ 
+  if(!popupId || !confirm('Delete event?')) return;
+  let events=loadEvents(); 
+  events=events.filter(e=>e.id!==popupId); 
+  saveEvents(events); 
+  closePopup(); 
+  loadTable(); 
+}
 
 function generateInvoice(ev){
   const invoices = loadInvoices();
   const invoiceNum = 'INV-'+Date.now();
-  const amount = ev.attendance*10 + 50; // simple mock pricing
-  invoices.push({invoiceNum, customer:ev.title, orderType:ev.orderInfo?.type||ev.type||'-', amount, status:'Pending', orderId:ev.id});
+  const amount = (ev.attendance||0)*10 + 50; // simple mock pricing
+  invoices.push({
+    invoiceNum,
+    customer:ev.title,
+    orderType:ev.orderInfo?.type||ev.type||'-',
+    amount,
+    status:'Pending',
+    orderId:ev.id
+  });
   saveInvoices(invoices);
-  renderInvoices();
 }
 
 function renderInvoices(){
   const invoices = loadInvoices();
-  const tbody = document.getElementById('invoiceBody'); tbody.innerHTML='';
+  const tbody = document.getElementById('invoiceBody'); 
+  tbody.innerHTML='';
   invoices.forEach(inv=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${inv.invoiceNum}</td><td>${inv.customer}</td><td>${inv.orderType}</td><td>$${inv.amount}</td><td>${inv.status}</td>
     <td>${inv.status==='Pending'?`<button onclick="markPaid('${inv.invoiceNum}')">Mark as Paid</button>`:''}</td>`;
     tbody.appendChild(tr);
   });
+  renderSummary();
 }
 
 function markPaid(invoiceNum){
   const invoices = loadInvoices();
-  const idx = invoices.findIndex(i=>i.invoiceNum===invoiceNum); if(idx===-1) return;
+  const idx = invoices.findIndex(i=>i.invoiceNum===invoiceNum); 
+  if(idx===-1) return;
   invoices[idx].status='Paid';
   saveInvoices(invoices);
   renderInvoices();
 }
-
-function renderReports(){
-  const events = JSON.parse(localStorage.getItem('events')||'[]');
-  const totalDays = 30;
-  const bookedDays = new Set(events.map(e=>e.date)).size;
-  const utilization = Math.round((bookedDays / totalDays) * 100);
-  document.getElementById('utilizationRate').textContent = utilization + '%';
-
-  // Peak day logic
-  const dayCount = {};
-  events.forEach(e=> dayCount[e.date] = (dayCount[e.date]||0) + 1);
-  let peak = Object.entries(dayCount).sort((a,b)=>b[1]-a[1])[0];
-  document.getElementById('peakDay').textContent = peak ? `${peak[0]} (${peak[1]} bookings)` : 'N/A';
-}
-renderReports();
-
 
 loadTable();
 </script>
