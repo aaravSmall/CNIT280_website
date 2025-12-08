@@ -55,7 +55,8 @@
       <textarea id="order-details" rows="4" placeholder="Describe your event" required></textarea>
 
       <label for="event-date" data-i18n="eventDateLabel">Event Date (Nov 1–30, 2025):</label>
-      <input type="date" id="event-date" min="2025-11-01" max="2025-11-30" required />
+      <!-- min will be set dynamically to max(tomorrow, 2025-11-01) -->
+      <input type="date" id="event-date" max="2025-11-30" required />
 
       <label for="attendance" data-i18n="attendanceLabel">Expected Attendance (optional):</label>
       <input type="number" id="attendance" min="0" placeholder="e.g., 50" />
@@ -96,7 +97,7 @@
   </div>
 
   <script>
-    // nav
+    // NAV BAR
     (function renderNav(){
       const user = JSON.parse(localStorage.getItem('currentUser')||'null');
       const nav = document.getElementById('navBar');
@@ -115,7 +116,7 @@
     const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
     if(!currentUser || currentUser.role !== 'customer'){ alert('Access denied. Customers only.'); window.location.href='login.html'; }
 
-    // i18n
+    // i18n translations
     const orderTranslations = {
       en: {
         orderTitle:"Place an Order",
@@ -216,8 +217,48 @@
 
     applyOrderLanguage('en');
 
-    function isDateBooked(dateStr){ const ev = JSON.parse(localStorage.getItem('events')||'[]'); return ev.some(e=>e.date===dateStr); }
+    // EVENTS / DATE HELPERS
+    function isDateBooked(dateStr){ 
+      const ev = JSON.parse(localStorage.getItem('events')||'[]'); 
+      return ev.some(e=>e.date===dateStr); 
+    }
 
+    // Set min date = max(tomorrow, 2025-11-01)
+    (function setMinFutureDate(){
+      const input = document.getElementById('event-date');
+      if(!input) return;
+
+      const today = new Date();
+      const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+      const novStart = new Date('2025-11-01');
+      const novEnd   = new Date('2025-11-30');
+
+      let minDate = (tomorrow < novStart) ? novStart : tomorrow;
+      if (minDate > novEnd) {
+        // If we're past Nov 30, clamp to Nov 30 (no truly valid dates but keeps control valid)
+        minDate = novEnd;
+      }
+
+      input.min = minDate.toISOString().slice(0,10);
+    })();
+
+    // Prevent picking dates that already have events
+    (function preventBookedDates(){
+      const input = document.getElementById('event-date');
+      if(!input) return;
+
+      input.addEventListener('change', () => {
+        const chosen = input.value;
+        if (!chosen) return;
+        if (isDateBooked(chosen)) {
+          alert('That date already has an event. Please choose another date.');
+          input.value = ''; // clear invalid date
+        }
+      });
+    })();
+
+    // FORM HANDLING
     const form = document.getElementById('orderForm');
     form.addEventListener('submit', e => {
       e.preventDefault();
@@ -256,7 +297,10 @@
       document.getElementById('successPopup').style.display = 'flex';
     });
 
-    function showError(msg){ document.getElementById('errorText').textContent = msg; document.getElementById('errorPopup').style.display = 'flex'; }
+    function showError(msg){ 
+      document.getElementById('errorText').textContent = msg; 
+      document.getElementById('errorPopup').style.display = 'flex'; 
+    }
     function closePopup(id){ document.getElementById(id).style.display = 'none'; }
 
     function confirmOrder(){
@@ -275,6 +319,7 @@
       const expiry = document.getElementById('expiry').value;
       const cvv = document.getElementById('cvv').value.trim();
 
+      // Final double-book check
       if(events.some(e=>e.date===date)){
         closePopup('successPopup');
         showError(t.errTaken);
