@@ -8,10 +8,22 @@
     header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
     nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
     nav a { text-decoration:none; font-weight:bold; color:#31333e; }
-    .container { max-width:900px; margin:24px auto; background:white; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); }
+    nav a:hover { text-decoration:underline; }
+    .container {
+      max-width:900px;
+      margin:24px auto;
+      background:white;
+      padding:20px;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.08);
+    }
     .roleNote { margin-top:8px; color:#555; font-size:0.95em; }
     .small { font-size:0.95em; color:#666; margin-top:10px; }
     button { background:#3b5d5b; color:white; padding:8px 12px; border-radius:6px; border:none; cursor:pointer; }
+    #notificationsSection { margin-top:24px; }
+    #notificationsSection h3 { margin-bottom:8px; }
+    #notificationsList { padding-left:18px; }
+    #notificationsList li { margin-bottom:6px; }
   </style>
 </head>
 <body>
@@ -27,42 +39,105 @@
     <p>This is the prototype homepage. Use the menu above to navigate.</p>
     <p class="roleNote" id="roleNote"></p>
     <p class="small">Quick links: calendar, order form (customers), dashboards (admins/staff).</p>
+
+    <!-- Notifications panel -->
+    <div id="notificationsSection">
+      <h3>Notifications</h3>
+      <ul id="notificationsList"></ul>
+      <p id="noNotifications" class="small">No notifications right now.</p>
+    </div>
   </div>
 
   <script>
-    // Render nav based on logged-in user role
+    // Get current user
     const user = JSON.parse(localStorage.getItem('currentUser')||'null');
     const nav = document.getElementById('navBar');
+
+    // NAV + role label
     if(!user){
-      // not logged in: only show login
       nav.innerHTML = `<a href="login.html">Login</a>`;
       document.getElementById('roleLabel').textContent = 'Not logged in';
       document.getElementById('roleNote').textContent = 'Please login to use the prototype.';
+      renderNotifications(null);
     } else {
-      // role-specific nav
       let html = `<a href="homePage.html">Home</a> `;
-      // calendar visible to all roles
       html += `<a href="calendar.html">Calendar</a> `;
       if(user.role === 'customer'){
         html += `<a href="orderForm.html">Place an Order</a> <a href="orderHistory.html">Order History</a>`;
-        document.getElementById('roleNote').textContent = 'You are logged in as CUSTOMER. Use "Place an Order" to schedule events (Nov 1–30, 2025).';
+        document.getElementById('roleNote').textContent =
+          'You are logged in as CUSTOMER. Use "Place an Order" to schedule events (Nov 1–30, 2025).';
       } else if(user.role === 'admin'){
         html += `<a href="adminDashboard.html">Admin Dashboard</a>`;
-        document.getElementById('roleNote').textContent = 'You are logged in as ADMIN. Manage the calendar and events here.';
+        document.getElementById('roleNote').textContent =
+          'You are logged in as ADMIN. Manage the calendar, invoices, and reports here.';
       } else if(user.role === 'staff'){
         html += `<a href="staffDashboard.html">Staff Dashboard</a>`;
-        document.getElementById('roleNote').textContent = 'You are logged in as STAFF. View events and update attendance/rating.';
+        document.getElementById('roleNote').textContent =
+          'You are logged in as STAFF. View assigned events, update attendance/rating, and see setup alerts.';
       }
       html += ` <a href="login.html" onclick="logout(event)">Logout</a>`;
       nav.innerHTML = html;
-      document.getElementById('roleLabel').textContent = `${user.username} — ${user.role.toUpperCase()}`;
+      document.getElementById('roleLabel').textContent =
+        `${user.username} — ${user.role.toUpperCase()}`;
+
+      renderNotifications(user);
     }
 
     function logout(e){
-      // let login page handle storage clearing; still remove here
       e.preventDefault();
       localStorage.removeItem('currentUser');
       window.location.href = 'login.html';
+    }
+
+    // Notifications rendering (supports 901 & 902)
+    function renderNotifications(user) {
+      const list = document.getElementById('notificationsList');
+      const empty = document.getElementById('noNotifications');
+      if (!list || !empty) return;
+
+      const all = JSON.parse(localStorage.getItem('notifications') || '[]');
+
+      let filtered = [];
+      if (!user) {
+        filtered = [];
+      } else if (user.role === 'customer') {
+        // client reminders
+        filtered = all.filter(n => n.type === 'client' && n.audience === user.username);
+      } else if (user.role === 'staff') {
+        // staff setup alerts
+        filtered = all.filter(n => n.type === 'staff' && n.audience === user.username);
+      } else if (user.role === 'admin') {
+        // show everything to admin so you can talk through "system notifications log"
+        filtered = all.slice();
+      }
+
+      if (!filtered.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        empty.textContent = user
+          ? 'No notifications right now for your account.'
+          : 'Login to see notifications.';
+        return;
+      }
+
+      // Sort newest first
+      filtered.sort((a,b) => {
+        const da = new Date(a.date || '');
+        const db = new Date(b.date || '');
+        return db - da;
+      });
+
+      list.innerHTML = '';
+      empty.style.display = 'none';
+
+      filtered.forEach(n => {
+        const li = document.createElement('li');
+        const dt = n.date ? new Date(n.date) : null;
+        const when = dt && !isNaN(dt) ? dt.toLocaleString() : '';
+        const status = n.status ? ` [${n.status}]` : '';
+        li.innerHTML = `<strong>${when}</strong> — ${n.message}<span style="font-size:0.8em;color:#666;">${status}</span>`;
+        list.appendChild(li);
+      });
     }
   </script>
 </body>

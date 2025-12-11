@@ -17,6 +17,12 @@
     .popup-content{ background:white; padding:18px; border-radius:10px; max-width:600px; width:92%; position:relative; }
     .close-btn { position:absolute; top:8px; right:12px; cursor:pointer; font-size:20px; }
     select.lang { border-radius:6px; padding:4px 6px; border:1px solid #ccc; }
+
+    /* Highlight invalid fields */
+    .error {
+      border-color: red !important;
+      box-shadow: 0 0 3px red;
+    }
   </style>
 </head>
 <body>
@@ -54,9 +60,9 @@
       <label for="order-details" data-i18n="detailsLabel">Details:</label>
       <textarea id="order-details" rows="4" placeholder="Describe your event" required></textarea>
 
-      <label for="event-date" data-i18n="eventDateLabel">Event Date (Nov 1–30, 2025):</label>
-      <!-- min will be set dynamically to max(tomorrow, 2025-11-01) -->
-      <input type="date" id="event-date" max="2025-11-30" required />
+      <label for="event-date" data-i18n="eventDateLabel">Event Date (future dates only):</label>
+      <!-- min will be set dynamically to tomorrow -->
+      <input type="date" id="event-date" required />
 
       <label for="attendance" data-i18n="attendanceLabel">Expected Attendance (optional):</label>
       <input type="number" id="attendance" min="0" placeholder="e.g., 50" />
@@ -116,6 +122,23 @@
     const currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
     if(!currentUser || currentUser.role !== 'customer'){ alert('Access denied. Customers only.'); window.location.href='login.html'; }
 
+    // small helpers for dates
+    function getTodayStr(){
+      const t = new Date();
+      const y = t.getFullYear();
+      const m = String(t.getMonth()+1).padStart(2,'0');
+      const d = String(t.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
+    function getTomorrowStr(){
+      const t = new Date();
+      const tomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate()+1);
+      const y = tomorrow.getFullYear();
+      const m = String(tomorrow.getMonth()+1).padStart(2,'0');
+      const d = String(tomorrow.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
+
     // i18n translations
     const orderTranslations = {
       en: {
@@ -126,7 +149,7 @@
         orderInfo:"Order Information",
         orderType:"Order Type:",
         detailsLabel:"Details:",
-        eventDateLabel:"Event Date (Nov 1–30, 2025):",
+        eventDateLabel:"Event Date (future dates only):",
         attendanceLabel:"Expected Attendance (optional):",
         paymentInfo:"Payment Information",
         cardNameLabel:"Name on Card:",
@@ -140,7 +163,9 @@
         errRequired:"Please complete all required fields.",
         errEmail:"Please enter a valid email address.",
         errCVV:"CVV must be 3 digits",
-        errDateRange:"Date must be between Nov 1 and Nov 30, 2025.",
+        errCardNumber:"Card number must be exactly 16 digits.",
+        errExpiry:"Expiration date must be this month or later.",
+        errFutureDate:"Event date must be in the future.",
         errBooked:"That date is already booked. Choose another date.",
         errTaken:"That date was just taken. Choose another date.",
         confirmAlert:"Order confirmed, you should receive an email soon!"
@@ -153,7 +178,7 @@
         orderInfo:"Información del pedido",
         orderType:"Tipo de pedido:",
         detailsLabel:"Detalles:",
-        eventDateLabel:"Fecha del evento (1–30 de noviembre de 2025):",
+        eventDateLabel:"Fecha del evento (solo fechas futuras):",
         attendanceLabel:"Asistencia esperada (opcional):",
         paymentInfo:"Información de pago",
         cardNameLabel:"Nombre en la tarjeta:",
@@ -167,7 +192,9 @@
         errRequired:"Por favor completa todos los campos obligatorios.",
         errEmail:"Por favor ingresa un correo electrónico válido.",
         errCVV:"El CVV debe tener 3 dígitos.",
-        errDateRange:"La fecha debe estar entre el 1 y el 30 de noviembre de 2025.",
+        errCardNumber:"El número de tarjeta debe tener exactamente 16 dígitos.",
+        errExpiry:"La fecha de expiración debe ser este mes o más adelante.",
+        errFutureDate:"La fecha del evento debe ser en el futuro.",
         errBooked:"Esa fecha ya está reservada. Elige otra fecha.",
         errTaken:"Esa fecha acaba de ser tomada. Elige otra fecha.",
         confirmAlert:"¡Pedido confirmado, deberías recibir un correo pronto!"
@@ -180,7 +207,7 @@
         orderInfo:"Informations sur la commande",
         orderType:"Type de commande :",
         detailsLabel:"Détails :",
-        eventDateLabel:"Date de l’événement (1–30 novembre 2025) :",
+        eventDateLabel:"Date de l’événement (dates futures uniquement) :",
         attendanceLabel:"Participation prévue (optionnel) :",
         paymentInfo:"Informations de paiement",
         cardNameLabel:"Nom sur la carte :",
@@ -194,7 +221,9 @@
         errRequired:"Veuillez remplir tous les champs obligatoires.",
         errEmail:"Veuillez saisir une adresse e-mail valide.",
         errCVV:"Le CVV doit comporter 3 chiffres.",
-        errDateRange:"La date doit être comprise entre le 1er et le 30 novembre 2025.",
+        errCardNumber:"Le numéro de carte doit comporter exactement 16 chiffres.",
+        errExpiry:"La date d’expiration doit être ce mois-ci ou plus tard.",
+        errFutureDate:"La date de l’événement doit être dans le futur.",
         errBooked:"Cette date est déjà réservée. Choisissez une autre date.",
         errTaken:"Cette date vient d’être prise. Choisissez une autre date.",
         confirmAlert:"Commande confirmée, vous devriez recevoir un e-mail bientôt !"
@@ -223,40 +252,43 @@
       return ev.some(e=>e.date===dateStr); 
     }
 
-    // Set min date = max(tomorrow, 2025-11-01)
+    // Set min date = tomorrow (future dates only)
     (function setMinFutureDate(){
       const input = document.getElementById('event-date');
       if(!input) return;
-
-      const today = new Date();
-      const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
-      const novStart = new Date('2025-11-01');
-      const novEnd   = new Date('2025-11-30');
-
-      let minDate = (tomorrow < novStart) ? novStart : tomorrow;
-      if (minDate > novEnd) {
-        // If we're past Nov 30, clamp to Nov 30 (no truly valid dates but keeps control valid)
-        minDate = novEnd;
-      }
-
-      input.min = minDate.toISOString().slice(0,10);
+      const tomorrowStr = getTomorrowStr();
+      input.min = tomorrowStr;
     })();
 
     // Prevent picking dates that already have events
     (function preventBookedDates(){
       const input = document.getElementById('event-date');
       if(!input) return;
-
       input.addEventListener('change', () => {
         const chosen = input.value;
         if (!chosen) return;
         if (isDateBooked(chosen)) {
           alert('That date already has an event. Please choose another date.');
-          input.value = ''; // clear invalid date
+          input.value = '';
         }
       });
     })();
+
+    // Helper functions for field-specific errors
+    function clearFieldErrors() {
+      document.querySelectorAll('.error').forEach(el => {
+        el.classList.remove('error');
+      });
+    }
+
+    function setFieldError(element, message) {
+      clearFieldErrors();
+      if (element) {
+        element.classList.add('error');
+        element.focus();
+      }
+      showError(message);
+    }
 
     // FORM HANDLING
     const form = document.getElementById('orderForm');
@@ -264,25 +296,84 @@
       e.preventDefault();
       const t = orderTranslations[currentLang] || orderTranslations.en;
 
-      const name = document.getElementById('patient-id').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const type = document.getElementById('order-type').value;
-      const details = document.getElementById('order-details').value.trim();
-      const date = document.getElementById('event-date').value;
-      const attendance = document.getElementById('attendance').value || '';
-      const cardName = document.getElementById('card-name').value.trim();
-      const cardNumber = document.getElementById('card-number').value.trim();
-      const expiry = document.getElementById('expiry').value;
-      const cvv = document.getElementById('cvv').value.trim();
+      clearFieldErrors();
 
-      if(!name || !email || !type || !details || !date || !cardName || !cardNumber || !expiry || !cvv){
-        showError(t.errRequired); return;
+      const nameEl       = document.getElementById('patient-id');
+      const emailEl      = document.getElementById('email');
+      const typeEl       = document.getElementById('order-type');
+      const detailsEl    = document.getElementById('order-details');
+      const dateEl       = document.getElementById('event-date');
+      const attendanceEl = document.getElementById('attendance');
+      const cardNameEl   = document.getElementById('card-name');
+      const cardNumberEl = document.getElementById('card-number');
+      const expiryEl     = document.getElementById('expiry');
+      const cvvEl        = document.getElementById('cvv');
+
+      const name       = nameEl.value.trim();
+      const email      = emailEl.value.trim();
+      const type       = typeEl.value;
+      const details    = detailsEl.value.trim();
+      const date       = dateEl.value;
+      const attendance = attendanceEl.value || '';
+      const cardName   = cardNameEl.value.trim();
+      const cardNumber = cardNumberEl.value.trim();
+      const expiry     = expiryEl.value;  // format "YYYY-MM"
+      const cvv        = cvvEl.value.trim();
+
+      // Required fields (attendance is optional)
+      if (!name)       { setFieldError(nameEl, t.errRequired); return; }
+      if (!email)      { setFieldError(emailEl, t.errRequired); return; }
+      if (!type)       { setFieldError(typeEl, t.errRequired); return; }
+      if (!details)    { setFieldError(detailsEl, t.errRequired); return; }
+      if (!date)       { setFieldError(dateEl, t.errRequired); return; }
+      if (!cardName)   { setFieldError(cardNameEl, t.errRequired); return; }
+      if (!cardNumber) { setFieldError(cardNumberEl, t.errRequired); return; }
+      if (!expiry)     { setFieldError(expiryEl, t.errRequired); return; }
+      if (!cvv)        { setFieldError(cvvEl, t.errRequired); return; }
+
+      // Email format
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setFieldError(emailEl, t.errEmail);
+        return;
       }
-      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError(t.errEmail); return; }
-      if(!/^\d{3}$/.test(cvv)) { showError(t.errCVV); return; }
-      if(date < '2025-11-01' || date > '2025-11-30'){ showError(t.errDateRange); return; }
-      if(isDateBooked(date)){ showError(t.errBooked); return; }
 
+      // Card number: exactly 16 digits
+      if (!/^\d{16}$/.test(cardNumber)) {
+        setFieldError(cardNumberEl, t.errCardNumber);
+        return;
+      }
+
+      // CVV: exactly 3 digits
+      if (!/^\d{3}$/.test(cvv)) {
+        setFieldError(cvvEl, t.errCVV);
+        return;
+      }
+
+      // Expiration date: must be this month or later
+      if (expiry) {
+        const now = new Date();
+        const currentYM =
+          now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        if (expiry < currentYM) {
+          setFieldError(expiryEl, t.errExpiry);
+          return;
+        }
+      }
+
+      // Event date must be in the future (tomorrow or later)
+      const tomorrowStr = getTomorrowStr();
+      if (date < tomorrowStr) {
+        setFieldError(dateEl, t.errFutureDate);
+        return;
+      }
+
+      // Date not already booked
+      if (isDateBooked(date)) {
+        setFieldError(dateEl, t.errBooked);
+        return;
+      }
+
+      // If we reach here, everything is valid → show summary popup
       const summary = `
         <strong>${t.nameLabel}</strong> ${name}<br>
         <strong>${t.emailLabel}</strong> ${email}<br>

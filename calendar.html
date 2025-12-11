@@ -4,15 +4,17 @@
   <meta charset="utf-8" />
   <title>Calendar</title>
 
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+  <!-- FullCalendar CSS & JS (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 
   <style>
     body { font-family: Arial, sans-serif; margin:0; background:#f4f4f9; color:#333; }
     header { background:#3b5d5b; color:white; padding:15px; text-align:center; }
     nav { display:flex; justify-content:center; background:#ece0d7; padding:10px; gap:12px; }
-    nav a { text-decoration:none; font-weight:bold; color:#31333e; }
-    #calendar { max-width:900px; margin:20px auto; background:white; padding:10px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+    nav a { margin:0 5px; text-decoration:none; font-weight:bold; color:#31333e; }
+    nav a:hover { text-decoration:underline; }
+    #calendar { max-width: 900px; margin: 20px auto; background: white; padding: 10px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
     .popup { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; }
     .popup-content { background:white; padding:20px; border-radius:10px; max-width:500px; width:92%; position:relative; }
     .close-btn { position:absolute; top:10px; right:15px; font-size:20px; cursor:pointer; color:#333; }
@@ -24,18 +26,20 @@
 </head>
 <body>
   <header><h1>Event Calendar</h1></header>
-  <nav id="navBar"></nav>
+  <!-- Nav will be filled by JS based on role -->
+  <nav id="mainNav"></nav>
+
   <div id="calendar"></div>
 
-  <!-- Popup -->
+  <!-- Event Edit Popup (Admin/staff) -->
   <div class="popup" id="eventPopup">
     <div class="popup-content">
       <span class="close-btn" onclick="closeEventPopup()">&times;</span>
-      <h2>Event Info</h2>
+      <h2>Edit Event</h2>
       <p id="popupSummary"></p>
 
-      <label for="edit-date">Date (Nov 1–30, 2025):</label>
-      <input type="date" id="edit-date" min="2025-11-01" max="2025-11-30">
+      <label for="edit-date">Date (future dates only):</label>
+      <input type="date" id="edit-date">
 
       <label for="assign-staff">Assign Staff:</label>
       <select id="assign-staff">
@@ -58,188 +62,317 @@
   </div>
 
   <script>
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    if(!currentUser){
-      alert("Please login.");
-      window.location.href="login.html";
+    // ---------- Date Helpers ----------
+    function getTodayStr(){
+      const t = new Date();
+      const y = t.getFullYear();
+      const m = String(t.getMonth()+1).padStart(2,'0');
+      const d = String(t.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
     }
 
-    function logout(){ localStorage.removeItem("currentUser"); window.location.href="login.html"; }
+    function getTomorrowStr(){
+      const t = new Date();
+      const tomorrow = new Date(t.getFullYear(), t.getMonth(), t.getDate()+1);
+      const y = tomorrow.getFullYear();
+      const m = String(tomorrow.getMonth()+1).padStart(2,'0');
+      const d = String(tomorrow.getDate()).padStart(2,'0');
+      return `${y}-${m}-${d}`;
+    }
 
-    function buildNavBar(user){
-      const nav = document.getElementById('navBar');
-      nav.innerHTML = '';
-      const links = [{text:'Home', href:'homePage.html'}];
+    // ---------- Global currentUser ----------
+    let currentUser = null;
 
-      if(user.role==='customer'){
-        links.push({text:'Place an Order', href:'orderForm.html'});
-        links.push({text:'Calendar', href:'calendar.html'});
-        links.push({text:'Order History', href:'orderHistory.html'});
-      } else if(user.role==='admin'){
-        links.push({text:'Calendar', href:'calendar.html'});
-        links.push({text:'Admin Dashboard', href:'adminDashboard.html'});
-      } else if(user.role==='staff'){
-        links.push({text:'Calendar', href:'calendar.html'});
-        links.push({text:'Staff Dashboard', href:'staffDashboard.html'});
+    // ---------- LocalStorage helpers ----------
+    function loadEvents() {
+      return JSON.parse(localStorage.getItem("events") || "[]");
+    }
+
+    function saveEvents(evArr) {
+      localStorage.setItem("events", JSON.stringify(evArr));
+    }
+
+    // helper: is date booked?
+    function isDateBooked(dateStr) {
+      const events = loadEvents();
+      return events.some(ev => ev.date === dateStr);
+    }
+
+    // ---------- Logout ----------
+    function logout() { 
+      localStorage.removeItem("currentUser"); 
+      window.location.href = "login.html"; 
+    }
+
+    // ---------- Build role-based nav ----------
+    function buildNavForRole(role) {
+      const nav = document.getElementById('mainNav');
+      if (!nav) return;
+
+      const links = [];
+
+      links.push('<a href="homePage.html">Home</a>');
+
+      if (role === 'customer') {
+        links.push('<a href="orderForm.html">Place an Order</a>');
+        links.push('<a href="orderHistory.html">Order History</a>');
+      } else if (role === 'staff') {
+        links.push('<a href="staffDashboard.html">Staff Dashboard</a>');
+      } else if (role === 'admin') {
+        links.push('<a href="adminDashboard.html">Admin Dashboard</a>');
       }
 
-      links.push({text:'Logout', href:'#', onclick:'logout()'});
-      links.forEach(link=>{
-        const a = document.createElement('a');
-        a.textContent = link.text;
-        if(link.href) a.href = link.href;
-        if(link.onclick) a.onclick = () => { window[link.onclick.replace('()','')](); return false; };
-        nav.appendChild(a);
-      });
+      // Calendar link (current page) visible for all roles
+      links.push('<a href="calendar.html">Calendar</a>');
+
+      // Logout
+      links.push('<a href="#" id="logoutLink">Logout</a>');
+
+      nav.innerHTML = links.join('');
+
+      const logoutLink = document.getElementById('logoutLink');
+      if (logoutLink) {
+        logoutLink.addEventListener('click', function(e) {
+          e.preventDefault();
+          logout();
+        });
+      }
     }
 
-    buildNavBar(currentUser);
-
-    function loadEvents(){ return JSON.parse(localStorage.getItem("events")||'[]'); }
-    function saveEvents(arr){ localStorage.setItem("events", JSON.stringify(arr)); }
-
+    // ---------- Popup helpers ----------
     let popupCurrentEventId = null;
 
-    document.addEventListener('DOMContentLoaded', function(){
-      const calendarEl = document.getElementById('calendar');
+    function openEventPopup(ev) {
+      popupCurrentEventId = ev.id;
 
-      const calendar = new FullCalendar.Calendar(calendarEl,{
-        initialView:'dayGridMonth',
-        initialDate:'2025-11-01',
-        headerToolbar:{ left:'prev,next today', center:'title', right:'dayGridMonth' },
-        selectable:true,
-        editable: currentUser.role==='admin',
-        select: function(info){
-          if(currentUser.role==='customer'){
-            alert('To book a date, use the Place an Order page.');
+      document.getElementById('popupSummary').innerHTML = `
+        <strong>Name:</strong> ${ev.orderInfo?.name || ev.title}<br>
+        <strong>Order Type:</strong> ${ev.orderInfo?.type || '-'}<br>
+        <strong>Details:</strong> ${ev.orderInfo?.details || '-'}<br>
+        <strong>Status:</strong> ${ev.completed ? 'Complete' : 'Pending'}<br>
+      `;
+      document.getElementById('edit-date').value = ev.date;
+      document.getElementById('att').value = ev.attendance || 0;
+      document.getElementById('rat').value = ev.rating || '';
+      document.getElementById('assign-staff').value = ev.assignedStaff || '';
+
+      // Staff cannot change date or assign staff
+      if (currentUser.role === 'staff') {
+        document.getElementById('edit-date').disabled = true;
+        document.getElementById('assign-staff').disabled = true;
+      } else {
+        document.getElementById('edit-date').disabled = false;
+        document.getElementById('assign-staff').disabled = false;
+      }
+
+      document.getElementById('eventPopup').style.display = 'flex';
+    }
+
+    function closeEventPopup() {
+      document.getElementById('eventPopup').style.display = 'none';
+      popupCurrentEventId = null;
+    }
+
+    function saveEventEdits() {
+      if (!popupCurrentEventId) return;
+      const events = loadEvents();
+      const idx = events.findIndex(e => e.id === popupCurrentEventId);
+      if (idx === -1) return;
+
+      const newDate = document.getElementById('edit-date').value;
+      const staff = document.getElementById('assign-staff').value || null;
+      const attendance = parseInt(document.getElementById('att').value) || 0;
+      const rating = parseInt(document.getElementById('rat').value) || 0;
+
+      const tomorrowStr = getTomorrowStr();
+      if (!newDate) {
+        alert('Please select a date.');
+        return;
+      }
+      if (newDate < tomorrowStr) {
+        alert('Events must be scheduled for future dates.');
+        return;
+      }
+
+      const conflict = events.some(ev => ev.date === newDate && ev.id !== popupCurrentEventId);
+      if (conflict) {
+        alert('That date is already taken by another event. One event per date is enforced.');
+        return;
+      }
+
+      events[idx].date = newDate;
+      events[idx].assignedStaff = staff;
+      events[idx].attendance = attendance;
+      events[idx].rating = rating;
+      if (events[idx].orderInfo && events[idx].orderInfo.name) {
+        events[idx].title = events[idx].orderInfo.name;
+      }
+
+      saveEvents(events);
+
+      if (window._fc_calendar) {
+        const cal = window._fc_calendar;
+        cal.removeAllEvents();
+        loadEvents().forEach(e => 
+          cal.addEvent({
+            id: e.id,
+            title: e.title,
+            start: e.date,
+            color: e.completed ? '#2ecc71' : ''
+          })
+        );
+      }
+      closeEventPopup();
+      alert('Saved changes.');
+    }
+
+    function deleteEventFromPopup() {
+      if (!confirm('Delete this event? This cannot be undone.')) return;
+      const events = loadEvents();
+      const idx = events.findIndex(e => e.id === popupCurrentEventId);
+      if (idx !== -1) events.splice(idx, 1);
+      saveEvents(events);
+
+      if (window._fc_calendar) {
+        const cal = window._fc_calendar;
+        cal.removeAllEvents();
+        loadEvents().forEach(e => 
+          cal.addEvent({
+            id: e.id,
+            title: e.title,
+            start: e.date,
+            color: e.completed ? '#2ecc71' : ''
+          })
+        );
+      }
+      closeEventPopup();
+    }
+
+    function markCompleteFromPopup() {
+      const events = loadEvents();
+      const idx = events.findIndex(e => e.id === popupCurrentEventId);
+      if (idx === -1) return;
+      events[idx].completed = true;
+      saveEvents(events);
+
+      if (window._fc_calendar) {
+        const evObj = window._fc_calendar.getEventById(popupCurrentEventId);
+        if (evObj) evObj.setProp('color', '#2ecc71');
+      }
+      closeEventPopup();
+    }
+
+    // ---------- Initialize after DOM is ready ----------
+    document.addEventListener('DOMContentLoaded', function () {
+      // Load the current user
+      currentUser = JSON.parse(localStorage.getItem("currentUser") || 'null');
+
+      if (!currentUser) {
+        alert("Please login.");
+        window.location.href = "login.html";
+        return;
+      }
+
+      // Build role-based nav
+      buildNavForRole(currentUser.role);
+
+      // Initialize FullCalendar
+      const calendarEl = document.getElementById('calendar');
+      const todayStr = getTodayStr();
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        initialDate: todayStr,
+        headerToolbar: { 
+          left: 'prev,next today', 
+          center: 'title', 
+          right: 'dayGridMonth' 
+        },
+        selectable: true,
+        select: function(info) {
+          // Customers cannot create events from calendar
+          if (currentUser.role === 'customer') {
+            alert('To book a date, use the Place an Order page. You can only book future dates.');
             calendar.unselect();
             return;
           }
-          if(currentUser.role==='admin'){
+
+          // Admin can create quick events by selecting a date
+          if (currentUser.role === 'admin') {
             const dateStr = info.startStr;
-            if(loadEvents().some(e=>e.date===dateStr)){
-              alert('That date already has an event. One per date.');
+            const tomorrowStr = getTomorrowStr();
+            if (dateStr < tomorrowStr) {
+              alert('Events must be scheduled for future dates.');
               calendar.unselect();
               return;
             }
-            const evObj = { id:String(Date.now()), title:'Admin Event', date:dateStr, completed:false, attendance:0, rating:0, assignedStaff:null, orderInfo:null };
+            if (isDateBooked(dateStr)) {
+              alert('That date already has an event. One event per date is enforced.');
+              calendar.unselect();
+              return;
+            }
+
+            // quick create a blank admin event
             const events = loadEvents();
+            const evObj = {
+              id: String(Date.now()),
+              title: 'Admin Event',
+              date: dateStr,
+              completed: false,
+              attendance: 0,
+              rating: 0,
+              assignedStaff: null,
+              orderIndex: -1,
+              orderInfo: null
+            };
             events.push(evObj);
             saveEvents(events);
-            calendar.addEvent({ id:evObj.id, title:evObj.title, start:evObj.date });
+            calendar.addEvent({ id: evObj.id, title: evObj.title, start: evObj.date });
           }
         },
-        eventClick: function(info){ openEventPopup(loadEvents().find(e=>e.id===info.event.id)); },
-        events: loadEvents().map(e=>({ id:e.id, title:e.title, start:e.date, color:e.completed?'#2ecc71':'' })),
-        eventDrop: function(info){
-          if(currentUser.role!=='admin'){ info.revert(); return; }
+        eventClick: function(info) {
+          const eventId = info.event.id;
+          const ev = loadEvents().find(e => e.id === eventId);
+          if (!ev) return;
+          openEventPopup(ev);
+        },
+        events: loadEvents().map(e => ({
+          id: e.id,
+          title: e.title,
+          start: e.date,
+          color: e.completed ? '#2ecc71' : ''
+        })),
+        editable: (currentUser.role === 'admin'),
+        eventDrop: function(info) {
+          if (currentUser.role !== 'admin') {
+            info.revert();
+            return;
+          }
           const newDate = info.event.startStr;
-          if(newDate<'2025-11-01'||newDate>'2025-11-30'){
-            alert('Events must be in Nov 2025.'); info.revert(); return;
+          const tomorrowStr = getTomorrowStr();
+          if (newDate < tomorrowStr) {
+            alert('Events must be scheduled for future dates.');
+            info.revert();
+            return;
           }
           const events = loadEvents();
-          if(events.some(e=>e.date===newDate && e.id!==info.event.id)){
-            alert('Date already taken.'); info.revert(); return;
+          const conflict = events.some(ev => ev.date === newDate && ev.id !== info.event.id);
+          if (conflict) {
+            alert('That date already has an event. One event per date is enforced.');
+            info.revert();
+            return;
           }
-          const idx = events.findIndex(e=>e.id===info.event.id);
-          if(idx!==-1){ events[idx].date=newDate; saveEvents(events); }
+          const idx = events.findIndex(ev => ev.id === info.event.id);
+          if (idx !== -1) {
+            events[idx].date = newDate;
+            saveEvents(events);
+          }
         }
       });
 
       calendar.render();
       window._fc_calendar = calendar;
     });
-
-    function openEventPopup(ev){
-      if(!ev) return;
-      popupCurrentEventId = ev.id;
-      document.getElementById('popupSummary').innerHTML = `
-        <strong>Name:</strong> ${ev.orderInfo?.name || ev.title}<br>
-        <strong>Type:</strong> ${ev.orderInfo?.type || '-'}<br>
-        <strong>Details:</strong> ${ev.orderInfo?.details || '-'}<br>
-        <strong>Status:</strong> ${ev.completed ? 'Complete':'Pending'}<br>
-      `;
-      document.getElementById('edit-date').value = ev.date;
-      document.getElementById('assign-staff').value = ev.assignedStaff||'';
-      document.getElementById('att').value = ev.attendance||0;
-      document.getElementById('rat').value = ev.rating||0;
-
-      if(currentUser.role==='customer'){
-        document.getElementById('edit-date').disabled=true;
-        document.getElementById('assign-staff').disabled=true;
-        document.getElementById('att').disabled=true;
-        document.getElementById('rat').disabled=true;
-      } else if(currentUser.role==='staff'){
-        document.getElementById('edit-date').disabled=true;
-        document.getElementById('assign-staff').disabled=true;
-        document.getElementById('att').disabled=false;
-        document.getElementById('rat').disabled=false;
-      } else {
-        document.getElementById('edit-date').disabled=false;
-        document.getElementById('assign-staff').disabled=false;
-        document.getElementById('att').disabled=false;
-        document.getElementById('rat').disabled=false;
-      }
-      document.getElementById('eventPopup').style.display='flex';
-    }
-
-    function closeEventPopup(){ document.getElementById('eventPopup').style.display='none'; popupCurrentEventId=null; }
-
-    function saveEventEdits(){
-      if(!popupCurrentEventId) return;
-      const events = loadEvents();
-      const idx = events.findIndex(e=>e.id===popupCurrentEventId);
-      if(idx===-1) return;
-
-      const newDate = document.getElementById('edit-date').value;
-      const staff = document.getElementById('assign-staff').value||null;
-      const attendance = parseInt(document.getElementById('att').value)||0;
-      const rating = parseInt(document.getElementById('rat').value)||0;
-
-      if(newDate<'2025-11-01'||newDate>'2025-11-30'){
-        alert('Events must be Nov 1–30, 2025.'); return;
-      }
-      if(events.some(e=>e.date===newDate && e.id!==popupCurrentEventId)){
-        alert('Date taken.'); return;
-      }
-
-      events[idx].date=newDate;
-      events[idx].assignedStaff=staff;
-      events[idx].attendance=attendance;
-      events[idx].rating=rating;
-      if(events[idx].orderInfo?.name) events[idx].title=events[idx].orderInfo.name;
-      saveEvents(events);
-
-      const cal = window._fc_calendar;
-      if(cal){ cal.removeAllEvents(); loadEvents().forEach(e=>cal.addEvent({ id:e.id, title:e.title, start:e.date, color:e.completed?'#2ecc71':'' })); }
-
-      closeEventPopup();
-      alert('Saved changes.');
-    }
-
-    function deleteEventFromPopup(){
-      if(!popupCurrentEventId) return;
-      if(!confirm('Delete this event?')) return;
-      const events = loadEvents();
-      const idx = events.findIndex(e=>e.id===popupCurrentEventId);
-      if(idx!==-1) events.splice(idx,1);
-      saveEvents(events);
-
-      const cal = window._fc_calendar;
-      if(cal){ cal.removeAllEvents(); loadEvents().forEach(e=>cal.addEvent({ id:e.id, title:e.title, start:e.date, color:e.completed?'#2ecc71':'' })); }
-
-      closeEventPopup();
-    }
-
-    function markCompleteFromPopup(){
-      if(!popupCurrentEventId) return;
-      const events = loadEvents();
-      const idx = events.findIndex(e=>e.id===popupCurrentEventId);
-      if(idx!==-1){ events[idx].completed=true; saveEvents(events); }
-      const cal = window._fc_calendar;
-      if(cal){ cal.getEventById(popupCurrentEventId)?.setProp('color','#2ecc71'); }
-      closeEventPopup();
-    }
   </script>
 </body>
 </html>

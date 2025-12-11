@@ -4,61 +4,300 @@
   <meta charset="UTF-8">
   <title>Login</title>
   <style>
-    body { font-family: Arial, sans-serif; background:#f4f4f9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
-    .login-container { background:white; padding:30px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); width:300px; }
-    h2 { text-align:center; color:#3b5d5b; }
-    label { display:block; margin-top:15px; font-weight:bold; }
-    input { width:100%; padding:8px; margin-top:6px; border-radius:6px; border:1px solid #ccc; }
-    button { width:100%; padding:10px; margin-top:20px; border:none; border-radius:6px; background:#3b5d5b; color:white; cursor:pointer; font-weight:bold; }
-    button:hover { background:#2d4443; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      width: 320px;
+    }
+    h2 {
+      text-align: center;
+      color: #3b5d5b;
+      margin-top: 0;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #3b5d5b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #2d4443;
+    }
+    .error {
+      color: red;
+      text-align: center;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+    .hint {
+      font-size: 0.85em;
+      color: #555;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    .hint code {
+      background:#f0f0f0;
+      padding:2px 4px;
+      border-radius:4px;
+    }
   </style>
 </head>
 <body>
+  <div class="container">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <div class="error" id="errorMsg"></div>
+      <div class="hint">
+        Demo accounts:<br>
+        Client: <code>customer1 / pass123</code><br>
+        Admin: <code>admin1 / admin123</code><br>
+        Staff: <code>staff1 / staff123</code>
+      </div>
+    </form>
+  </div>
 
-<div class="login-container">
-  <h2>Login</h2>
-
-  <label for="username">Username:</label>
-  <input type="text" id="username" required>
-
-  <label for="password">Password:</label>
-  <input type="password" id="password" required>
-
-  <button onclick="login()">Login</button>
-</div>
-
-<script>
-  function login() {
-    const username = document.getElementById('username').value.trim();
-    const password = document.getElementById('password').value.trim();
-
-    if(!username || !password) {
-      alert('Please enter both username and password.');
-      return;
-    }
-
-    // Demo users with fixed role
-    const demoUsers = [
-      {username:'customer1', password:'pass123', role:'customer'},
-      {username:'admin1', password:'admin123', role:'admin'},
-      {username:'staff1', password:'staff123', role:'staff'}
+  <script>
+    // ------------------------------------------------------------------
+    // Demo users
+    // ------------------------------------------------------------------
+    const users = [
+      { username: "customer1", password: "pass123", role: "customer" },
+      { username: "admin1",    password: "admin123", role: "admin" },
+      { username: "staff1",    password: "staff123", role: "staff" }
     ];
 
-    const user = demoUsers.find(u => u.username === username && u.password === password);
-    if(!user){
-      alert('Invalid username or password.');
-      return;
+    // ------------------------------------------------------------------
+    // DEMO DATA SEEDING FOR VIDEO WALKTHROUGH
+    // ------------------------------------------------------------------
+    function seedDemoData() {
+      // Only seed once unless localStorage is cleared
+      if (localStorage.getItem("demoSeeded") === "true") return;
+
+      // 1) ORDERS (client bookings with payment info + status)
+      const orders = [
+        {
+          customer: "customer1",
+          name: "Tech Expo 2025",
+          email: "tech.client@example.com",
+          type: "Event Booking",
+          details: "Full-day technology exhibition with breakout rooms and A/V.",
+          date: "2025-11-10",
+          attendance: 150,
+          rating: 4,
+          cardName: "Tech Client",
+          cardNumber: "4111111111111111",
+          expiry: "2025-12",
+          cvv: "123",
+          status: "Completed"
+        },
+        {
+          customer: "customer1",
+          name: "Healthcare Summit",
+          email: "health.client@example.com",
+          type: "Event Booking",
+          details: "Healthcare leadership summit with keynote and catered lunch.",
+          date: "2025-11-15",
+          attendance: 80,
+          rating: 0,
+          cardName: "Health Client",
+          cardNumber: "5555444433332222",
+          expiry: "2026-01",
+          cvv: "456",
+          status: "Completed"
+        },
+        {
+          customer: "customer1",
+          name: "Startup Pitch Night",
+          email: "startup.client@example.com",
+          type: "Event Booking",
+          details: "Evening pitch session with basic A/V and light snacks.",
+          date: "2025-11-20",
+          attendance: 60,
+          rating: 0,
+          cardName: "Startup Client",
+          cardNumber: "4000000000000002",
+          expiry: "2025-11",
+          cvv: "789",
+          status: "Pending"
+        }
+      ];
+
+      // 2) EVENTS (shown on calendar, admin & staff dashboards)
+      const events = orders.map((o, idx) => {
+        const id = "ev" + (idx + 1);
+        return {
+          id: id,
+          title: o.name,
+          date: o.date,
+          completed: o.status === "Completed",
+          attendance: o.attendance,
+          rating: o.rating || 0,
+          assignedStaff: idx === 0 ? "staff1" : null, // staff1 assigned to first event
+          orderIndex: idx,
+          orderInfo: o
+        };
+      });
+
+      // 3) INVOICES (for 501 & 502 – generate & track payments)
+      const invoices = [
+        {
+          id: "inv1",
+          eventId: "ev1",
+          customer: "customer1",
+          eventName: "Tech Expo 2025",
+          amount: 5000,
+          currency: "USD",
+          status: "Paid",
+          dateIssued: "2025-10-20",
+          datePaid: "2025-10-25"
+        },
+        {
+          id: "inv2",
+          eventId: "ev2",
+          customer: "customer1",
+          eventName: "Healthcare Summit",
+          amount: 3200,
+          currency: "USD",
+          status: "Pending",
+          dateIssued: "2025-10-22",
+          datePaid: null
+        },
+        {
+          id: "inv3",
+          eventId: "ev3",
+          customer: "customer1",
+          eventName: "Startup Pitch Night",
+          amount: 1800,
+          currency: "USD",
+          status: "Draft",
+          dateIssued: "2025-10-28",
+          datePaid: null
+        }
+      ];
+
+      // 4) VENDOR ORDERS (for 601 & 602 – vendor management)
+      const vendorOrders = [
+        {
+          id: "vo1",
+          eventId: "ev1",
+          eventName: "Tech Expo 2025",
+          vendorName: "AV Masters",
+          serviceType: "A/V",
+          status: "Confirmed",
+          contact: "av@avmasters.com"
+        },
+        {
+          id: "vo2",
+          eventId: "ev2",
+          eventName: "Healthcare Summit",
+          vendorName: "Gourmet Catering Co.",
+          serviceType: "Catering",
+          status: "Requested",
+          contact: "events@gourmetcatering.com"
+        }
+      ];
+
+      // 5) NOTIFICATIONS (for 901 & 902 – reminders)
+      const notifications = [
+        {
+          id: "n1",
+          type: "client",
+          audience: "customer1",
+          eventId: "ev1",
+          message: "Reminder: Tech Expo 2025 tomorrow at the City Dome.",
+          date: "2025-11-09T09:00:00",
+          status: "Sent"
+        },
+        {
+          id: "n2",
+          type: "staff",
+          audience: "staff1",
+          eventId: "ev2",
+          message: "Setup alert: Healthcare Summit begins in 2 hours.",
+          date: "2025-11-15T06:00:00",
+          status: "Sent"
+        },
+        {
+          id: "n3",
+          type: "client",
+          audience: "customer1",
+          eventId: "ev3",
+          message: "Reminder: Startup Pitch Night is this evening.",
+          date: "2025-11-20T09:00:00",
+          status: "Pending"
+        }
+      ];
+
+      // Store everything
+      localStorage.setItem("orders", JSON.stringify(orders));
+      localStorage.setItem("events", JSON.stringify(events));
+      localStorage.setItem("invoices", JSON.stringify(invoices));
+      localStorage.setItem("vendorOrders", JSON.stringify(vendorOrders));
+      localStorage.setItem("notifications", JSON.stringify(notifications));
+
+      // Mark that we've seeded
+      localStorage.setItem("demoSeeded", "true");
     }
 
-    // Save current user
-    localStorage.setItem('currentUser', JSON.stringify({ username, role: user.role }));
+    // Seed immediately when login page loads
+    seedDemoData();
 
-    // Redirect based on role
-    if(user.role === 'customer') window.location.href = 'homePage.html';
-    else if(user.role === 'admin') window.location.href = 'adminDashboard.html';
-    else if(user.role === 'staff') window.location.href = 'staffDashboard.html';
-  }
-</script>
+    // ------------------------------------------------------------------
+    // LOGIN HANDLING
+    // ------------------------------------------------------------------
+    const loginForm = document.getElementById("loginForm");
+    const errorMsg = document.getElementById("errorMsg");
 
+    loginForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      const user = users.find(
+        u => u.username === username && u.password === password
+      );
+
+      if (user) {
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        // Redirect based on role
+        if (user.role === "customer") {
+          window.location.href = "homePage.html";
+        } else if (user.role === "admin") {
+          window.location.href = "adminDashboard.html";
+        } else if (user.role === "staff") {
+          window.location.href = "staffDashboard.html";
+        } else {
+          window.location.href = "homePage.html";
+        }
+      } else {
+        errorMsg.textContent = "Invalid username or password!";
+      }
+    });
+  </script>
 </body>
 </html>
